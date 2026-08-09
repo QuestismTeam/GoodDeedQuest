@@ -13,8 +13,11 @@ logger: Final = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai/recommend", tags=["AI Quest Recommendation"])
 
+# run_recommendation_flow는 LangGraph를 동기로 invoke하고 그 안에서 LLM을 여러 번 부른다.
+# async def 안에서 await 없이 부르면 그 20~40초 동안 AI 서버가 다른 요청을 하나도 못 받는다.
+# def로 선언하면 FastAPI가 별도 스레드풀에서 돌려주므로 동시 요청이 서로를 막지 않는다.
 @router.post("", response_model=QuestRecommendResponse)
-async def recommend_quests(req: QuestRecommendRequest) -> QuestRecommendResponse:
+def recommend_quests(req: QuestRecommendRequest) -> QuestRecommendResponse:
     """
     LangGraph 추천 워크플로우를 실행하여 사용자 맞춤형 5개 퀘스트를 반환합니다.
     """
@@ -29,13 +32,13 @@ async def recommend_quests(req: QuestRecommendRequest) -> QuestRecommendResponse
 
         recommended_quests = final_state.get("recommended_quests", [])
         logger.info(f"AI 퀘스트 추천 워크플로우 정상 완료. 사용자 ID: {req.user_id}, 퀘스트 수: {len(recommended_quests)}")
-        
+
         return QuestRecommendResponse(
             success=True,
             message="추천 퀘스트 생성이 완료되었습니다.",
             data=recommended_quests
         )
-    
+
     except Exception as e:
         logger.error(f"AI 퀘스트 추천 연산 중 예외 발생. 사용자 ID: {req.user_id}, 에러: {str(e)}")
         raise HTTPException(
@@ -44,7 +47,7 @@ async def recommend_quests(req: QuestRecommendRequest) -> QuestRecommendResponse
         )
 
 
-# ⭐ 수정: 신규 — 지도에서 사용자가 직접 고른 봉사공고 1건을 그 자리에서 퀘스트 제목/요약으로
+# 신규 — 지도에서 사용자가 직접 고른 봉사공고 1건을 그 자리에서 퀘스트 제목/요약으로
 # 변환한다. generate_volunteer_summaries()는 여러 건을 한 번에 LLM 호출로 처리하려고 만들어진
 # 함수라 리스트를 받지만, 여기선 항상 1건짜리 리스트로 호출한다(백엔드가 단건으로 부르므로).
 # LLM이 실패해도 generate_volunteer_summaries 내부에서 규칙 기반 폴백을 이미 보장하므로,
