@@ -24,10 +24,8 @@ def recommend_quests(req: QuestRecommendRequest) -> QuestRecommendResponse:
     logger.info(f"AI 퀘스트 추천 요청 수신. 사용자 ID: {req.user_id}")
 
     try:
-        # Pydantic 객체를 RecommendState 딕셔너리로 직렬화
         initial_state = req.model_dump()
 
-        # LangGraph 8개 노드 워크플로우 실행
         final_state = run_recommendation_flow(initial_state)
 
         recommended_quests = final_state.get("recommended_quests", [])
@@ -54,7 +52,6 @@ def recommend_quests(req: QuestRecommendRequest) -> QuestRecommendResponse:
 # 이 엔드포인트 자체는 예외를 던지지 않는다(백엔드 쪽에서 502로 잡지 않아도 되게).
 @router.post("/volunteer-summary", response_model=dict)
 def summarize_volunteer_center(req: VolunteerSummaryRequest):
-    """봉사 공고 1건을 퀘스트 표시용 제목/한 문장 요약으로 변환합니다."""
     logger.info(f"봉사 공고 단건 요약 요청. center_id={req.center_id}")
 
     center_dict = {

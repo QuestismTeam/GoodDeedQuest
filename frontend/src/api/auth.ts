@@ -102,9 +102,6 @@ export async function getMyProfile(): Promise<CurrentUser> {
 
 export async function updateMyLocation(latitude: number, longitude: number) {
   const response = await api.patch('/auth/me/location', {
-    // ⭐ 수정: 백엔드가 Decimal(max_digits=10, decimal_places=7)로 소수점 7자리까지만
-    // 허용하는데, GPS 좌표는 보통 그보다 훨씬 긴 소수점으로 내려와서 그대로 보내면
-    // 422가 남 (VolSearchScreen에서도 원래 있던 버그, catch로 무시돼서 안 보였을 뿐).
     current_latitude: Number(latitude.toFixed(7)),
     current_longitude: Number(longitude.toFixed(7)),
   });

@@ -15,7 +15,6 @@ export type CityRankingResponse = {
   ranking: CityRankingEntry[];
 };
 
-/** 시군구 랭킹 조회 (SiDoMapScreen). 대항전이 없으면 success:false로 응답이 와서 예외로 변환. */
 export async function getCityRanking(cityId: number): Promise<CityRankingResponse> {
   const response = await api.get(`/map/city-ranking/${cityId}`);
   if (!response.data.success) {
@@ -36,7 +35,6 @@ export type NationalRankingResponse = {
   ranking: NationalRankingEntry[];
 };
 
-/** 시/도별 랭킹 조회 (MainMapScreen). 대항전이 없으면 success:false로 응답이 와서 예외로 변환. */
 export async function getNationalRanking(): Promise<NationalRankingResponse> {
   const response = await api.get('/map/national-ranking');
   if (!response.data.success) {
@@ -71,7 +69,6 @@ export type RegionRankingResponse = {
   recommended_facilities: RecommendedFacility[];
 };
 
-/** 시군구 상세 랭킹 조회 (RegionDetailsScreen) - 개인 랭킹 + AI 부족봉사 판단 + 추천 시설. */
 export async function getRegionRanking(regionId: number): Promise<RegionRankingResponse> {
   const response = await api.get(`/map/region-ranking/${regionId}`);
   if (!response.data.success) {
@@ -96,13 +93,11 @@ export type VolunteerCenter = {
   updated_at: string;
 };
 
-/** 내 주변 봉사센터 조회 (VolSearchScreen). VMS 크롤링 데이터라 "봉사" 전용, "선행" 데이터 소스는 아직 없음. */
 export async function getNearbyVolunteerCenters(lat: number, lng: number, radiusKm = 3): Promise<VolunteerCenter[]> {
   const response = await api.get('/map/volunteer-centers', { params: { lat, lng, radius_km: radiusKm } });
   return response.data.data ?? [];
 }
 
-/** 봉사 공고 단건 조회 (퀘스트 상세 → 원본 공고 이동). 없는 ID면 404가 난다. */
 export async function getVolunteerCenter(centerId: number): Promise<VolunteerCenter> {
   const response = await api.get(`/map/volunteer-centers/${centerId}`);
   return response.data.data;
@@ -113,7 +108,6 @@ export type RegionOption = {
   region_name: string;
 };
 
-/** 시/도 선택 시 하위 시군구 목록 조회 (TeamSelectPopup). */
 export async function getRegionsByCity(cityId: number): Promise<RegionOption[]> {
   const response = await api.get(`/map/cities/${cityId}/regions`);
   return response.data.data ?? [];
@@ -124,7 +118,6 @@ export type MapMainResponse = {
   region: { region_id: number; region_name: string; city_id: number } | null;
 };
 
-/** 지도메인 진입 시 참여지역 설정 여부 확인 (MainMapScreen). */
 export async function getMapMain(): Promise<MapMainResponse> {
   const response = await api.get('/map/main');
   return response.data.data;
@@ -136,7 +129,6 @@ export type TeamSelectResult = {
   competition_id: number;
 };
 
-/** 대항전 참여 지역 등록/변경. 최초 선택은 언제든, 변경은 정산 중(SETTLING)에만 가능. */
 export async function selectTeamRegion(regionId: number): Promise<TeamSelectResult> {
   const response = await api.post('/map/team-select', { region_id: regionId });
   if (!response.data.success) {

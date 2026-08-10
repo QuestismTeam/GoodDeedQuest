@@ -1,14 +1,3 @@
-/**
- * KoreaMapDrilldown — 대한민국 행정구역 드릴다운 지도.
- * korea_map_drilldown.html 에서 추출한 실제 SGIS 경계 데이터(assets/maps/korea_drilldown.json)를
- * react-native-svg 로 렌더한다. 전국(시/도) → 시/도 탭 → 시군구 지도로 드릴다운, 뒤로가기.
- * 선행퀘스트 컨셉(양피지·틸·골드)으로 채색하고, 우리 팀 지역은 골드로 강조.
- * 탭 동작: 첫 탭은 선택(하이라이트)만, 같은 지역을 한 번 더 탭해야 실제로 진입(드릴다운/이동)한다.
- * viewBox는 각 지역의 지배적 랜드마스만 기준으로 잡아 원거리 부속섬(백령도·울릉도 등)이
- * 지도를 축소시키지 않게 한다 (제주도 본섬은 그대로 유지).
- * 타이틀 자리는 눌리거나 선택된 지역이 있을 때만 그 이름을 보여주고, 평소엔 비워둔다.
- * teamRegion/teamSigungu가 빈 문자열(참여 지역 미설정)이면 "우리 팀" 태그·하이라이트를 아예 표시하지 않는다.
- */
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -19,8 +8,6 @@ type PathDef = { name: string; d: string };
 type MapDef = { viewBox: string; paths: PathDef[] };
 type DrillData = { national: MapDef; provinces: Record<string, MapDef> };
 
-// require avoids JSON-module TS config concerns; Metro bundles it.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const DRILL: DrillData = require('../../assets/maps/korea_drilldown.json');
 
 const MAP_COLORS = {
@@ -41,8 +28,6 @@ function vbSize(vb: string) {
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number; area: number };
 
-/** path d의 서브패스별 bbox 중 가장 큰 것(본토) — 원거리 부속도서(추자도·마라도 등)가
- *  뷰를 왜곡하지 않도록 지배적 랜드마스만 기준으로 삼는다. */
 function dominantBox(d: string): Box | null {
   let best: Box | null = null;
   for (const sub of d.split('M')) {
@@ -62,7 +47,6 @@ function dominantBox(d: string): Box | null {
   return best;
 }
 
-// map a national 시/도 name to a provinces[] key (exact, else 2-char prefix)
 function provinceKey(name: string): string | null {
   if (DRILL.provinces[name]) return name;
   const pre = name.slice(0, 2);
@@ -85,11 +69,8 @@ export default function KoreaMapDrilldown({
   onRegion?: (name: string) => void;
   onSigungu?: (name: string, province: string) => void;
   height?: number;
-  /** start locked on this province's 시군구 map (e.g. Ranking screen). */
   initialProvince?: string;
-  /** show the "← 전국" back button (false = locked to the province). */
   allowNational?: boolean;
-  /** national 시/도 tap drills in place; false = only fire onRegion (navigate elsewhere). */
   drillOnRegionTap?: boolean;
 }) {
   const { width } = useWindowDimensions();
@@ -97,17 +78,11 @@ export default function KoreaMapDrilldown({
     initialProvince ? provinceKey(initialProvince) : null
   );
   const [pressed, setPressed] = useState<string | null>(null);
-  // 1차 탭으로 선택된(아직 진입은 안 한) 지역명. 같은 이름을 한 번 더 탭하면 진입.
   const [selected, setSelected] = useState<string | null>(null);
-  // 실제 컨테이너 너비를 onLayout으로 측정 — 카드 패딩/보더 안쪽에 정확히 맞춰
-  // 우측 지역이 잘리지 않게 한다. (측정 전엔 화면 기반 추정치 사용)
   const [measuredW, setMeasuredW] = useState(0);
 
   const map = province && DRILL.provinces[province] ? DRILL.provinces[province] : DRILL.national;
 
-  // 전국/시군구 공통: 각 path의 지배적 랜드마스 bbox 합집합으로 viewBox를 재구성.
-  // 백령도·울릉도·마라도 같은 원거리 부속섬이 캔버스를 늘려 본토가 작게 나오는 문제를 해결.
-  // (제주도처럼 그 자체가 본섬인 경우는 지배적 랜드마스로 그대로 포함됨)
   const vb = useMemo(() => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of map.paths) {
@@ -129,8 +104,6 @@ export default function KoreaMapDrilldown({
     };
   }, [map, province]);
 
-  // 폭 기준 크기 → height prop을 최대 높이로 삼아, 세로로 긴 지역은
-  // 비율 유지한 채 축소해 전 지역이 항상 보이게 한다.
   const availW = measuredW > 0 ? measuredW : Math.min(width - 64, 360);
   const maxH = Math.max(height, 200);
   let boxW = availW;
@@ -142,11 +115,9 @@ export default function KoreaMapDrilldown({
 
   const onLandPress = (name: string) => {
     if (selected !== name) {
-      // 1차 탭 — 선택(호버)만, 진입하지 않음
       setSelected(name);
       return;
     }
-    // 2차 탭(같은 지역 재탭) — 실제 진입
     if (province) {
       onSigungu?.(name, province);
     } else {
@@ -157,15 +128,10 @@ export default function KoreaMapDrilldown({
     setSelected(null);
   };
 
-  // Reliable tap targets: transparent Pressable per region (bounding box of its path),
-  // scaled to screen. RN Pressables always fire — unlike <Path onPress> which is flaky
-  // inside a ScrollView on the New Architecture. Smaller regions render last (on top)
-  // so a small 시/도 inside a big one (예: 서울 안의 경기) stays tappable.
   const regions = useMemo(() => {
     const scale = boxW / vb.w;
     return map.paths
       .map((p) => {
-        // 히트 영역도 지배적 랜드마스 기준 — viewBox 원점(vb.x, vb.y) 오프셋 반영.
         const b = dominantBox(p.d);
         if (!b) return null;
         return {
@@ -183,13 +149,10 @@ export default function KoreaMapDrilldown({
     }[];
   }, [map, boxW, vb]);
 
-  // 타이틀 자리 — 눌리거나(pressed) 선택된(selected) 지역이 있으면 그 이름만 표시,
-  // 아니면 현재 province(시군구 뷰) 이름, 그마저 없으면 완전히 비워둔다.
   const titleText = pressed || selected || province || '';
 
   return (
     <View onLayout={(e) => setMeasuredW(Math.floor(e.nativeEvent.layout.width))}>
-      {/* toolbar: back / title */}
       <View style={styles.bar}>
         {province && allowNational ? (
           <Pressable
@@ -210,7 +173,6 @@ export default function KoreaMapDrilldown({
         <Text style={styles.title}>{titleText}</Text>
       </View>
 
-      {/* map — SVG는 시각용, 탭은 위의 투명 Pressable 오버레이가 처리(터치 신뢰성) */}
       <Animated.View key={province ?? 'nat'} entering={FadeIn.duration(220)} style={[styles.mapWrap, { height: svgH }]}>
         <View style={{ width: boxW, height: svgH }}>
           <Svg width={boxW} height={svgH} viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} style={StyleSheet.absoluteFill}>
