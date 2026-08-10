@@ -35,7 +35,6 @@ def rag_agent(state: ShortFormState) -> ShortFormState:
                 select(BackgroundMusic).where(BackgroundMusic.mood_tag.in_(mood_tags))
             ).all()
 
-            # ⭐ 수정: raw 결과 확인(#87)에서 실제 파싱/fallback 분기(#88)로 교체
             if candidates:
                 state["bgm_match"] = _pick_best_match(candidates, mood_tags)
             else:

@@ -253,7 +253,7 @@ export function AiScriptPopup({
       return result;
     } catch (error) {
       console.error('AI 대본 생성 실패:', error);
-      toast.show('AI 대본 생성에 실패했습니다.');
+      toast.show('AI 자막 생성에 실패했습니다.'); // ⭐ 수정: "AI 대본" → "AI 자막"
       return null;
     } finally {
       setLoading(false);
@@ -305,7 +305,7 @@ export function AiScriptPopup({
   return (
     <GamePopup visible={visible} onClose={close} width={Math.min(width - 48, 360)}>
       <View style={ai.header}>
-        <Text style={ai.title}>AI대본</Text>
+        <Text style={ai.title}>AI 자막</Text>{/* ⭐ 수정: "AI대본" → "AI 자막" */}
         <Pressable onPress={close} hitSlop={10}>
           <Text style={ai.x}>✕</Text>
         </Pressable>
@@ -320,7 +320,7 @@ export function AiScriptPopup({
             onChangeText={setText}
             multiline
             textAlignVertical="top"
-            placeholder="'생성하기'를 눌러 AI 대본을 만들어보세요"
+            placeholder="'생성하기'를 눌러 AI 자막을 만들어보세요" // ⭐ 수정: "AI 대본" → "AI 자막"
             placeholderTextColor={sf.trackSub}
             style={ai.scriptInput}
             selectionColor={colors.gold}

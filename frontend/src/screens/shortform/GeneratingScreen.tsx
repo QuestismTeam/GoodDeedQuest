@@ -144,7 +144,7 @@ export default function GeneratingScreen({ navigation, route }: any) {
         } else if (!finalShortsId || !finalCaptions || finalCaptions.length === 0) {
           // 수동("생성하기") 경로는 사진 선택 화면에서 이미 shortsId/captions를 만들어서
           // 넘겨줘야 한다 - 없으면 이전 단계(AI 대본)가 빠진 것이므로 여기서 걸러낸다.
-          setErrorMessage('대본이 준비되지 않았습니다. 이전 화면에서 AI 대본을 먼저 생성해주세요.');
+          setErrorMessage('대본이 준비되지 않았습니다. 이전 화면에서 AI 자막을 먼저 생성해주세요.'); // ⭐ 수정: "AI 대본" → "AI 자막"
           return;
         }
 
