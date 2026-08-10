@@ -13,6 +13,13 @@ from ai.app.quest_recommend.state import RecommendState
 
 logger: Final = logging.getLogger(__name__)
 
+
+# ⭐ 수정: 제목 비교용 정규화 함수. 1차 중복 검사와 2차 판정 매칭이 같은 기준을 쓰게 한다.
+def normalize_title(title: str) -> str:
+    """제목을 비교용으로 정규화합니다 (공백 제거 + 소문자화)."""
+    return (title or "").strip().lower().replace(" ", "")
+
+
 class QuestEvaluation(BaseModel):
     """비평가 LLM이 개별 퀘스트를 심사한 결과를 담는 채점표 스키마"""
     quest_title: str = Field(
@@ -22,13 +29,14 @@ class QuestEvaluation(BaseModel):
     )
     is_valid: bool = Field(
         ...,
-        # "퀘스트가 안전하고 현실적이며 사용자의 제약/상황에 부합하면 True, 그렇지 않으면 False"
-        description="True if the quest is safe, realistic, and matches the user's constraints/situation; False otherwise."
+        # ⭐ 수정: "확신이 없으면 True로 둘 것"을 스키마 수준에서 못 박는다.
+        # "퀘스트가 안전하고 사용 가능하면 True. 확신이 없으면 True로 둘 것"
+        description="True if the quest is safe and usable. When in doubt, set True."
     )
     reason: str = Field(
         ...,
         # "판단 사유 (영문 Planner 피드백용). 승인이면 짧은 구 하나, 반려면 상세히"
-        description="Reason for the decision, in English, used as Planner feedback. If is_valid is true, write only a short phrase (e.g. 'Fits interests'). If is_valid is false, explain the specific problem in detail so the planner can correct it."
+        description="Reason for the decision, in English, used as Planner feedback. If is_valid is true, write only a short phrase (e.g. 'Safe and usable'). If is_valid is false, explain the specific problem in detail so the planner can correct it."
     )
     reason_ko: str = Field(
         ...,
@@ -47,7 +55,7 @@ class ValidationReportOutput(BaseModel):
 def validate_candidates(state: RecommendState) -> Dict[str, Any]:
     """
     실제 봉사(retrieved_volunteers)와 AI가 생성한 일상 선행(ai_good_deeds)을 대상으로
-    1차 기계적 필터링(중복/누락) 및 2차 LLM 비평가(Generator-Critic) 품질 검수를 수행하는 노드 함수입니다.
+    1차 기계적 필터링(중복/누락) 및 2차 LLM 비평가(Generator-Critic) 안전성 검수를 수행하는 노드 함수입니다.
     반려된 퀘스트의 영문 사유(reason)는 rejection_reasons에 수집되어 Planner 피드백으로 전달되며,
     한글 사유(reason_ko)는 로그 용으로 기록됩니다.
     """
@@ -63,11 +71,11 @@ def validate_candidates(state: RecommendState) -> Dict[str, Any]:
 
     # 이전 회차(전체 루프) 누적 상자의 퀘스트 제목들을 미리 정규화하여 중복 목록에 등록
     seen_titles = {
-        (q.get("source_title") or q.get("quest_title") or "").strip().lower().replace(" ", "")
+        normalize_title(q.get("source_title") or q.get("quest_title"))
         for q in accumulated
         if q.get("source_title") or q.get("quest_title")
     }
-    
+
     """1단계: 1차 기계적 필터링 (중복 제목 및 필수 필드 누락 제거)"""
     pre_filtered_quests= []
 
@@ -76,10 +84,10 @@ def validate_candidates(state: RecommendState) -> Dict[str, Any]:
         source_title = vol.get("title") or "봉사활동"
         title = vol.get("quest_title") or source_title
 
-        normalized_title = source_title.strip().lower().replace(" ", "")
-        if normalized_title in seen_titles:
+        normalized = normalize_title(source_title)
+        if normalized in seen_titles:
             continue
-        seen_titles.add(normalized_title)
+        seen_titles.add(normalized)
 
         quest_description = vol.get("quest_summary") or "지역 봉사활동 참여"
         vol_location = vol.get("location") or "장소 미지정"
@@ -112,12 +120,12 @@ def validate_candidates(state: RecommendState) -> Dict[str, Any]:
             continue
 
         # 이전 루프 포함 전체 중복 검사 (공백/소문자 통일)
-        normalized_title = quest["quest_title"].strip().lower().replace(" ", "")
-        if normalized_title in seen_titles:
+        normalized = normalize_title(quest["quest_title"])
+        if normalized in seen_titles:
             logger.warning(f"1차 검수 탈락: 전 루프 포함 중복 제목 감지 ('{quest['quest_title']}').")
             continue
 
-        seen_titles.add(normalized_title)
+        seen_titles.add(normalized)
         pre_filtered_quests.append(quest)
 
     if not pre_filtered_quests:
@@ -127,65 +135,71 @@ def validate_candidates(state: RecommendState) -> Dict[str, Any]:
             "accumulated_candidates": accumulated
         }
 
-    """2단계: 2차 LLM 비평가(Critic) 심층 품질/윤리/제약조건 검수"""
+    """2단계: 2차 LLM 비평가(Critic) 안전성·중복 검수"""
 
     """
-    ("system", "당신은 전문 AI 퀘스트 품질 검사관입니다.
-        당신의 역할은 사용자에게 정말로 부적합한 퀘스트만 걸러내는 것이며, 가장 적합한 퀘스트를 선택하는 것이 아닙니다. 순위 결정은 별도의 점수 산정 단계에서 수행되므로, 단순히 "완벽하게 맞지는 않는" 퀘스트라면 통과시켜야 합니다. 명확하고 구체적인 문제가 있는 경우에만 Reject 하세요.
-        각 퀘스트에는 'quest_type'이 있습니다.
-        - 'GOOD_DEED'는 다른 AI 에이전트가 자유롭게 생성한 퀘스트이며 다시 생성할 수 있으므로, 제약 조건을 엄격하게 적용해도 됩니다.
-        - 'VOLUNTEER'는 실제로 게시된 봉사활동 공고이며 일정, 대상, 장소가 이미 고정되어 있어 제약 조건에 맞게 수정할 수 없습니다.
-        실제 봉사 공고에는 원본 게시물에서 그대로 가져온 'target' 필드가 있습니다(예: 청소년, 아동, 발달장애인, 입원 어르신).
-        "이 활동이 누구를 돕는가"에 대한 확정된 답으로 신뢰하고, 설명문을 자의적으로 해석해 이를 뒤집지 마십시오.
-        특히 봉사자의 모집 조건(연령, 자격 등)과 활동의 수혜 대상을 혼동하지 마십시오. 성인 봉사자를 모집하는 청소년 대상 활동은 청소년 관련 활동입니다.
-        다음 경우에만 Reject(is_valid=False) 하세요.
-        1. Safety: 퀘스트가 신체적으로 위험하거나, 명백히 비현실적이거나, 악용될 가능성이 있는 경우입니다.
-        2. 최근 추천 중복: 'recently_recommended' 목록의 제목과 사실상 동일한 퀘스트인 경우입니다. 이 목록은 최근에 이 사용자에게 추천된 퀘스트 제목이며, 사용자가 싫어한다고 밝힌 주제가 아닙니다. 제목이 거의 같을 때만 반려하고, 주제·대상·카테고리가 겹친다는 이유로는 절대 반려하지 마십시오.
-        조건 판단에 앞서, 사용자 관심사 코드 6종의 범위를 확인하세요.
-        - volunteer: 봉사활동 전반
-        - environment: 환경 정화, 재활용, 자원 절약, 기후 대응
-        - sharing: 기부, 물품 나눔, 식사 나눔
-        - animal: 유기동물 보호, 동물 돌봄
-        - community: 이웃 돕기, 지역 행사, 그리고 노인·장애인·아동·저소득층·다문화 가정 등 지역 주민을 돕는 활동을 모두 포함합니다. 장애인 지원과 어르신 지원은 COMMUNITY입니다.
-        - other: 위에 속하지 않는 선행
-        3. Hard incompatibility with 'llm_constraints': 퀘스트가 llm_constraints와 명백하게 충돌하는 경우입니다. 표현이 아니라 실제 의미를 기준으로 판단하세요. 청소년 멘토를 모집하는 봉사활동은 청소년 관련 조건을 충족하는 것으로 봐야 하며, 장애인을 돕는 봉사활동도 지역사회 봉사 조건을 충족하는 것으로 봐야 합니다. 합리적인 사람이 보기에 해당 조건과 관련이 있다고 판단된다면 통과시켜야 합니다.
-        4. 'VOLUNTEER'인 경우에만: 안전 문제, 최근 추천 목록과 제목이 거의 같은 경우, 또는 사용자가 실제로 언급한 일정 충돌이 있는 경우에만 Reject 하세요. 실제 봉사활동 공고는 주제가 완벽하게 일치하지 않는다는 이유, 여러 번 참여해야 한다는 이유, 경험자가 더 적합해 보인다는 이유, 특정 요일에 진행된다는 이유로 Reject 하면 안 됩니다.
-        퀘스트가 "가장 적합한 후보가 아니다", 설명이 부족하다, 다른 후보들과 단순히 다르다는 이유로는 Reject 하면 안 됩니다.
-        'VOLUNTEER'의 'quest_description'은 원본 공고를 요약한 한 문장입니다. 내용이 짧거나 세부 정보가 없다는 이유로 Reject 하지 마십시오. 원문 전체는 사용자에게 별도 화면으로 제공됩니다.
-        분량 규칙: 승인(is_valid=true)한 경우 'reason'과 'reason_ko'에 짧은 구 하나만 쓰세요(예: 'Fits interests' / '관심사에 부합'). 승인 사유는 이후 단계에서 사용되지 않습니다. 반려(is_valid=false)한 경우에만 Planner가 교정할 수 있도록 구체적인 문제를 상세히 설명하세요.
-        'quest_title'은 입력받은 문자열을 글자 그대로 복사하세요."),
-    ("human", "### 입력 정보
-        1. 사용자 프로필: {user_profile}
-        2. 상황 컨텍스트: {situation_context}
-        3. 사용자 커스텀 요청 컨텍스트: {request_context}
-        4. 추천 전략 및 제약조건: {recommendation_strategy}
-        ### 평가할 퀘스트 목록
-        {pre_filtered_quests}")
+    ("system", "당신은 퀘스트 후보의 안전성·상식 검사관입니다. 적합도 심사관이 아닙니다.
+        순위는 뒤쪽 점수 산정 단계가 정합니다. 당신의 유일한 일은 '정말로 쓸 수 없는' 후보만 걸러내는 것입니다.
+        애매하면 통과시키세요. 평범한 퀘스트를 통과시키는 비용은 0이지만,
+        멀쩡한 퀘스트를 반려하면 사용자 화면이 비어버립니다.
+
+        반려(is_valid=false)는 다음 세 가지 경우에만 하세요.
+        1. 안전: 신체적으로 위험하거나, 명백히 불가능하거나, 악용 소지가 있음
+        2. 최근 추천과 제목이 거의 동일함 (주제·대상·카테고리가 겹치는 것은 사유가 아님)
+        3. llm_constraints의 명시적 항목과 정면으로 충돌함
+           (예: 비가 와서 실내 조건이 걸렸는데 야외 전용 활동인 경우)
+
+        아래는 실제 운영에서 나온 '잘못된 반려'입니다. 절대 반복하지 마세요.
+        - "어린이집 조리실을 돕는 활동이라 커뮤니티와 관련 없다" → 틀렸습니다. 어린이집 지원은 COMMUNITY입니다.
+        - "노인 발톱 관리라 커뮤니티 관심사와 불일치" → 틀렸습니다. 어르신 돌봄은 COMMUNITY입니다.
+        - "발달장애 청소년 지원이라 지역 사회 서비스와 무관" → 틀렸습니다. 장애인 지원은 COMMUNITY입니다.
+        - "커뮤니티 센터 자원봉사가 커뮤니티 이니셔티브에 초점을 맞추지 않음" → 틀렸습니다. 자기모순입니다.
+        - "동물 보호소 봉사라 사용자 관심사와 불일치" → 틀렸습니다. 관심사는 순위를 정할 뿐 자격이 아닙니다.
+        - "팀 참여가 필요해 사용자의 개인 활동 선호와 불일치" → 틀렸습니다. 그런 정보는 입력에 없습니다.
+        - "실내 활동이라 야외 선호와 불일치" → 틀렸습니다. 사용자가 요청하지 않은 조건입니다.
+        - "설명이 짧다" → 틀렸습니다. 봉사 설명은 한 줄 요약이고 원문은 별도 화면에 있습니다.
+        - "여러 번 참여해야 한다 / 경험자가 적합해 보인다 / 특정 요일에 열린다" → 전부 틀렸습니다.
+
+        'VOLUNTEER'는 이미 게시된 실제 공고라 수정이 불가능합니다. 1번과 2번으로만 반려하세요.
+        3번(제약조건 충돌)으로는 절대 반려하지 마세요."),
+    ("human", "### 입력 정보 ... ### 평가할 퀘스트 목록 {pre_filtered_quests}")
     """
     validation_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a professional AI Quest Quality Inspector.
-Your job is to filter out quests that are genuinely unsuitable — not to pick the single best match. Ranking is handled separately by a scoring step, so a quest that is merely "not a perfect fit" must still pass. Reject only when there is a clear, concrete problem you can point to.
-Each quest has a 'quest_type':
-- 'GOOD_DEED' was freely generated by another AI agent and can be regenerated, so you may hold it strictly to the constraints.
-- 'VOLUNTEER' is a real, already-published listing with a fixed schedule, audience and venue. It cannot be rewritten to match constraints.
-Real volunteer postings carry a 'target' field taken directly from the original listing (e.g. 청소년, 아동, 발달장애인, 입원 어르신). Trust it as the authoritative answer to "who does this activity help". Do not contradict it based on your own reading of the description.
-In particular, never confuse the volunteer recruitment criteria (age, qualifications) with the beneficiaries of the activity. A posting that recruits adult volunteers to help teenagers IS a youth-related activity.
-Reject (is_valid=False) only for these reasons:
-1. Safety: the quest is physically dangerous, clearly unrealistic, or open to abuse.
-2. Recently recommended duplicate: the quest title is effectively identical to an entry in 'recently_recommended'. That list is a history of titles already shown to this user — it is NOT a list of topics the user dislikes. Reject only on a near-identical title. Never reject because a quest shares a theme, an audience, or a category with an entry in that list.
-Before judging constraints, note the scope of the six interest codes:
+        ("system", """You are a SAFETY AND SANITY filter for quest candidates. You are NOT a relevance ranker.
+
+Relevance ranking happens later, in a separate scoring step that uses priority_score. Your only job is to remove candidates that are genuinely unusable. When in doubt, PASS. Letting a mediocre quest through costs nothing — it will simply rank low. Rejecting a good one leaves the user staring at an empty screen.
+
+REJECT (is_valid=false) ONLY for these three reasons:
+1. SAFETY — the quest is physically dangerous, clearly impossible, or open to abuse.
+2. NEAR-IDENTICAL TITLE to an entry in 'recently_recommended'. That list is a history of titles already shown to this user; it is NOT a list of topics the user dislikes. Reject only when the titles are nearly the same word for word. Never because a quest shares a theme, an audience, or a category with something in that list.
+3. DIRECT CONTRADICTION of an explicit item in 'llm_constraints' — for example, an outdoor-only activity when the constraints require indoor because of rain.
+
+NEVER REJECT for any reason below. Every one of these is a real rejection from production that was WRONG:
+- "helping in a daycare kitchen is not related to community activity" — WRONG. Supporting a daycare IS community support.
+- "trimming an elderly person's toenails does not match the community interest" — WRONG. Elderly care IS community support.
+- "supporting a photography club for youth with developmental disabilities is unrelated to community service" — WRONG. Supporting disabled youth IS community support.
+- "volunteering at the local community centre does not focus on community initiatives" — WRONG, and self-contradictory. Read what the quest actually is.
+- "animal shelter volunteering does not match the user's stated interests" — WRONG. A quest outside the user's interests is still valid. Interests affect ranking, not eligibility. The generator is deliberately instructed to include quests outside the user's interests.
+- "this requires team participation and the user prefers solo activities" — WRONG. Nothing in the input states a solo preference. You invented it. Never reject on solo/team.
+- "this is an indoor activity and does not match the outdoor preference" — WRONG unless the user explicitly asked for outdoor. Never invent an indoor/outdoor requirement.
+- "the description is short / lacks detail" — WRONG. A VOLUNTEER description is a one-sentence summary; the full original posting is shown to the user on a separate screen.
+- "it requires multiple sessions / suits experienced participants / falls on a particular weekday" — WRONG.
+- "it is not the most relevant option available" — WRONG. That is the ranking step's job, not yours.
+
+Scope of the six interest codes, for reference only (they do NOT gate eligibility):
 - volunteer: volunteer work in general
 - environment: cleanups, recycling, resource saving, climate action
 - sharing: donations, sharing goods, sharing meals
 - animal: rescued animal care, animal welfare
-- community: helping neighbours, local events, AND support for elderly people, people with disabilities, children, low-income households and multicultural families. Assisting people with disabilities IS COMMUNITY. Assisting elderly people IS COMMUNITY. Never reject those as unrelated to a COMMUNITY interest.
+- community: helping neighbours and local events, AND support for elderly people, people with disabilities, children, low-income households and multicultural families. Supporting a daycare, a library, a welfare centre or a community centre all count as COMMUNITY.
 - other: good deeds that fit none of the above
-3. Hard incompatibility with 'llm_constraints': the quest plainly contradicts a constraint. Judge by substance, not by wording — a listing recruiting adult mentors for teenagers DOES relate to youth, and a listing that assists disabled residents DOES count as community service. If a reasonable person would say the quest is related to what the constraint asks for, it passes.
-4. For 'VOLUNTEER' only: reject solely on safety, on a near-identical title in 'recently_recommended', or on a scheduling conflict that the user actually stated. Do not reject a real listing for being an imperfect thematic match, for requiring multiple sessions, for suiting experienced participants, or for falling on a particular day of the week.
-Do not reject a quest for being "not the most relevant option available", for lacking detail, or for merely being different from the other candidates.
-The 'quest_description' of a 'VOLUNTEER' is a one-sentence summary of the original posting. Never reject it for being short or lacking detail — the full original text is shown to the user on a separate screen.
-LENGTH RULES — follow these exactly, they control response latency:
-- When is_valid is true, write only a short phrase in 'reason' and 'reason_ko' (e.g. 'Fits interests' / '관심사에 부합'). Approval reasons are never read by any later step, so anything longer is wasted.
+
+Real volunteer postings carry a 'target' field taken directly from the original listing (e.g. 청소년, 아동, 발달장애인, 입원 어르신). Trust it as the authoritative answer to "who does this activity help". Never confuse the volunteer recruitment criteria (age, qualifications) with the beneficiaries: a posting recruiting adult volunteers to help teenagers IS a youth activity.
+
+For 'VOLUNTEER' candidates specifically: these are already-published listings with a fixed schedule, audience and venue. They cannot be rewritten to satisfy anything. Reject them ONLY under reason 1 or 2. Never under reason 3.
+
+LENGTH RULES — follow exactly, they control response latency:
+- When is_valid is true, write only a short phrase in 'reason' and 'reason_ko' (e.g. 'Safe and usable' / '안전하고 사용 가능'). Approval reasons are never read by any later step.
 - When is_valid is false, explain the specific problem in detail so the planner can correct it.
 - Copy 'quest_title' from the input exactly, character for character."""),
         ("human", """### Inputs
@@ -228,26 +242,50 @@ LENGTH RULES — follow these exactly, they control response latency:
 
     # 3. 정상 반환 (OpenAI 또는 Gemini 성공 시)
     if response and response.evaluations:
-        title_to_evaluation = {eval_item.quest_title: eval_item for eval_item in response.evaluations}
+        # ⭐ 수정: 제목을 정규화해서 매칭한다. LLM이 마침표나 공백을 하나 더 붙이는 것만으로도
+        # 판정을 못 찾는 일이 있었다.
+        title_to_evaluation = {
+            normalize_title(eval_item.quest_title): eval_item
+            for eval_item in response.evaluations
+        }
 
         final_quests = []
         for q in pre_filtered_quests:
-            eval_report = title_to_evaluation.get(q["quest_title"])
+            eval_report = title_to_evaluation.get(normalize_title(q["quest_title"]))
 
-            if not (eval_report and eval_report.is_valid):
-                reason_en = eval_report.reason if eval_report and eval_report.reason else "Rejected by Critic."
-                reason_ko = eval_report.reason_ko if eval_report and eval_report.reason_ko else "Critic 검수 보고서 미수신."
+            # ⭐ 수정: 판정이 아예 없으면 통과시킨다(fail-open).
+            # 기존에는 판정 누락이 곧 반려였다. 비평가가 제목을 조금 바꾸거나 항목을 빠뜨리면
+            # 멀쩡한 퀘스트가 조용히 사라졌다. '판정 없음'은 '문제 있음'의 증거가 아니다.
+            if eval_report is None:
+                logger.warning(f"검수 보고서에 판정이 없어 통과 처리합니다: '{q['quest_title']}'")
+                final_quests.append(q)
+                accumulated.append(q)
+                continue
+
+            if not eval_report.is_valid:
+                reason_en = eval_report.reason or "Rejected by Critic."
+                reason_ko = eval_report.reason_ko or "사유 미기재."
 
                 rejection_reasons_en.append(f"'{q.get('quest_title')}': {reason_en}")
                 rejection_reasons_ko.append(f"'{q.get('quest_title')}': {reason_ko}")
-                logger.warning(f"2차 검수 탈락: 퀘스트 '{q['quest_title']}' 반려 사유: {reason_ko}")
+                # ⭐ 수정: 봉사인지 선행인지 로그에 표시한다. 봉사만 100% 반려되는 상황을
+                # 로그만 보고 판별할 수 있어야 한다.
+                logger.warning(
+                    f"2차 검수 탈락 [{q.get('quest_type')}]: 퀘스트 '{q['quest_title']}' 반려 사유: {reason_ko}"
+                )
                 continue
 
             final_quests.append(q)
             accumulated.append(q)
 
-        logger.info(f"품질 검수 완료. 최종 합격: {len(final_quests)}개 / 누적 합격: {len(accumulated)}개")
-        
+        # ⭐ 수정: 봉사/선행을 나눠서 집계한다. 봉사 통과율이 0이면 즉시 눈에 띈다.
+        volunteer_total = sum(1 for q in pre_filtered_quests if q.get("quest_type") == "VOLUNTEER")
+        volunteer_passed = sum(1 for q in final_quests if q.get("quest_type") == "VOLUNTEER")
+        logger.info(
+            f"품질 검수 완료. 합격 {len(final_quests)}개 / 누적 {len(accumulated)}개 "
+            f"(봉사 {volunteer_passed}/{volunteer_total}건 통과)"
+        )
+
         return {
             "candidate_quests": final_quests,
             "accumulated_candidates": accumulated,
@@ -255,7 +293,10 @@ LENGTH RULES — follow these exactly, they control response latency:
             "rejection_reasons_ko": rejection_reasons_ko
         }
 
-    # 4. 양대 LLM 모두 실패 시 빈 리스트 반환
+    # 4. 양대 LLM 모두 실패 시 1차 필터링 결과를 그대로 통과시킨다
+    # ⭐ 수정: 기존에는 accumulated에 반영하지 않아 재시도 판정이 어긋났다.
+    logger.warning("비평가 판정을 받지 못해 1차 필터링 목록을 그대로 통과시킵니다.")
+    accumulated.extend(pre_filtered_quests)
     return {
         "candidate_quests": pre_filtered_quests,
         "accumulated_candidates": accumulated
@@ -278,12 +319,12 @@ def route_validation(state: RecommendState) -> str:
     if total_candidates_count >= 5:
         logger.info(f"검증 통과: 최종 추천 후보 {total_candidates_count}개 확보 완료. 응답 생성 노드로 이동합니다.")
         return "response"
-    
+
     # 2. 재시도 횟수 초과 (Max Retries Reached) - 무한 루프 방지를 위한 강제 폴백 종료
     if retry_count >= 2:
         logger.warning(f"재시도 횟수 초과 (현재 {retry_count}회): 후보 {total_candidates_count}개로 최종 응답을 구성합니다.")
         return "response"
-    
+
     # 3. 봉사 데이터가 비었고 아직 '없음'이 확정되지 않은 경우에만 봉사 수색 노드로 회귀
     if not retrieved_volunteers and not skip_volunteer_agent:
         logger.info("검색된 봉사활동 데이터 부족: 추가 수집을 위해 volunteer 수색 노드로 회귀합니다.")
@@ -292,6 +333,3 @@ def route_validation(state: RecommendState) -> str:
     # 4. 추천 품질 낮음 - 검색 데이터는 존재하나 비평가(Critic) 심사에서 반려되어 후보가 부족해진 경우
     logger.warning(f"비평가 검수 탈락으로 인한 후보 부족 (현재 {total_candidates_count}개): 추천 전략 재수립을 위해 플래너로 회귀합니다.")
     return "planner"
-
-
-
