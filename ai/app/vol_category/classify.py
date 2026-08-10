@@ -1,16 +1,3 @@
-"""
-VolunteerCenter.vol_act(활동내용) 텍스트를 카테고리로 분류해서 ai_category 컬럼에 채워 넣는 배치 스크립트.
-
-분류 방식 (하이브리드):
-1순위 - 기관명/제목에 카테고리 키워드가 직접 있으면 그걸로 확정 (예: "OO장애인복지관" -> 장애인)
-        임베딩 호출 자체를 안 하므로 빠르고 정확함
-2순위 - 키워드로 못 잡으면(일반적인 문구뿐이면) 임베딩 기반 유사도 분류로 폴백
-
-- 실시간 API 아님, 새 크롤링 후 필요할 때 수동 실행
-- 이미 ai_category가 채워진 row는 건드리지 않음 (재실행 안전, 중단 후 재실행 가능)
-
-실행: 프로젝트 루트에서 python -m ai.app.vol_category.classify
-"""
 import time
 import numpy as np
 
@@ -18,7 +5,6 @@ from ai.app.common.database import SessionLocal
 from ai.app.common.embedding import get_embeddings
 from ai.app.vol_category.models import VolunteerCenterMirror
 
-# 우선순위 순서대로 검사 (구체적인 카테고리를 먼저 둬서 '복지관' 같은 범용 단어에 밀리지 않게 함)
 KEYWORD_RULES: list[tuple[str, list[str]]] = [
     ("장애인", ["장애인", "장애학생", "발달장애", "지적장애", "시각장애", "청각장애", "농아인", "점자"]),
     ("어르신", ["노인", "어르신", "경로", "요양원", "실버타운", "치매"]),
@@ -31,7 +17,6 @@ KEYWORD_RULES: list[tuple[str, list[str]]] = [
     ("지역사회", ["복지관", "주민센터", "사회복지", "헌혈"]),
 ]
 
-# 키워드로 못 잡았을 때 임베딩 폴백용 few-shot 예문
 CATEGORIES: dict[str, list[str]] = {
     "환경": [
         "한강공원 플로깅 및 환경정화 봉사자를 모집합니다",
@@ -97,7 +82,6 @@ def _get_category_embeddings() -> dict[str, list[list[float]]]:
 
 
 def _match_keyword_category(center: VolunteerCenterMirror) -> str | None:
-    """기관명/제목에 카테고리 키워드가 있으면 그 카테고리명을, 없으면 None을 반환"""
     identity_text = f"{center.vol_name or ''} {center.vol_title or ''}"
     for category, keywords in KEYWORD_RULES:
         if any(kw in identity_text for kw in keywords):
@@ -133,7 +117,6 @@ def run_classification(chunk_size: int = 20, sleep_sec: float = 0.5) -> None:
         if total == 0:
             return
 
-        # 1순위: 키워드로 먼저 분류, 못 잡은 것만 임베딩 대상으로 남김
         keyword_hit = 0
         embedding_targets = []
         for center in targets:

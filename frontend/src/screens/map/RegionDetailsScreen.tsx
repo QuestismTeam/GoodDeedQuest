@@ -1,11 +1,3 @@
-/**
- * SCREEN 05·4 · 시군구별 상세랭킹 — SiDoMap에서 시군구 확정 선택 시 진입.
- * 시군구 랭킹 리스트(탭0)는 SiDoMap 화면과 내용이 겹쳐서 제거함 - 이 화면은 상세 랭킹 전용.
- * 개인 랭킹(XP) + 🤖 부족봉사 AI 판단 + 📌 추천 봉사시설, /map/region-ranking/{region_id} 실API 연결.
- * 추천 봉사시설 → VolunteerDetail. 팀 변경 → /map/team-select 실API 연결(정산 중에만 변경 가능,
- * 실패 시 백엔드 메시지 그대로 토스트). 이 화면 자체의 랭킹 데이터는 팀 변경 후에도 재조회하지 않음
- * (browsing 중인 지역의 공개 랭킹이라 "내 팀"과 무관).
- */
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -113,7 +105,6 @@ export default function RegionDetailsScreen({ navigation, route }: any) {
           <>
             <Text style={styles.cityTitle}>{regionName} 개인 랭킹</Text>
 
-            {/* 개인 랭킹 카드 */}
             <View style={styles.userCard}>
               <View style={styles.userHead}>
                 <Text style={[styles.userHeadTxt, { width: 56 }]}>순위</Text>
@@ -140,7 +131,6 @@ export default function RegionDetailsScreen({ navigation, route }: any) {
               )}
             </View>
 
-            {/* AI 부족봉사 판단 */}
             <View style={styles.aiBox}>
               <Text style={styles.aiTitle}>🤖 지역 부족봉사 AI 판단</Text>
               <Text style={styles.aiText}>
@@ -149,7 +139,6 @@ export default function RegionDetailsScreen({ navigation, route }: any) {
               </Text>
             </View>
 
-            {/* 추천 봉사시설 (다른 지역) */}
             <Text style={styles.recTitle}>📌 추천 봉사시설</Text>
             {facilities.length === 0 ? (
               <Text style={styles.emptyText}>추천할 시설이 아직 없어요.</Text>

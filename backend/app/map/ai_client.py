@@ -18,7 +18,7 @@ VOL_CATEGORY_COMMENT_TIMEOUT = httpx.Timeout(
 
 
 class VolCategoryCommentClientError(Exception):
-    """AI 부족 카테고리 문구 생성 Client에서 발생하는 모든 오류의 기본 예외입니다."""
+    pass
 
 
 class VolCategoryCommentAIClient:

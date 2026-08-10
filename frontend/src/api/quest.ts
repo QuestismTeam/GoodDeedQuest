@@ -121,7 +121,6 @@ export async function refreshRecommendation(
   return response.data.data ?? [];
 }
 
-/** 지도에서 본 봉사공고를 AI 추천 없이 바로 퀘스트로 변환(또는 기존 것 재사용)한다. */
 export async function getOrCreateQuestFromVolunteerCenter(centerId: number): Promise<Quest> {
   const response = await api.post(`/quests/from-volunteer-center/${centerId}`);
   return response.data.data;

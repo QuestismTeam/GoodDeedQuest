@@ -1,24 +1,6 @@
-/**
- * SCREEN 06-4 · 레벨 페이지 (route MyLevel, back) — 프로필 카드(MyPageScreen과 완전 동일:
- * ProfileContext 공유, 아바타 업로드, 닉네임/관심카테고리 수정 모달 포함) ·
- * 경험치 바(PixelProgress, 마운트/포커스마다 채워짐 + XP count-up, 이번 레벨 안에서의 진행률로 표시) ·
- * 주간 경험치 추이 라인차트(react-native-svg, 그려지는 애니메이션, 일요일부터 시작하고
- * 아직 지나지 않은 요일은 선이 안 그려짐) · 랭킹 보러가기 → Ranking.
- * /growth/status 실API + ProfileContext(/mypage/profile) 연결.
- * ⭐ 수정: 프로필 카드를 MyPageScreen.tsx와 1:1 동일하게 이식 — 기존엔 아바타 52px·테두리 미표시·
- * 이름/칭호/레벨을 한 줄로 압축 표시했는데, 마이페이지 메인과 스타일이 달라 보여서 완전히 통일함.
- * 이 화면 자체가 이미 "레벨" 화면이라 마이페이지처럼 카드 전체를 눌러 MyLevel로 이동하는
- * 동작(및 화살표)만 빼고, 아바타 크기(64)·장착 테두리·편집 연필·칭호+관심카테고리·LV+연속접속일
- * 레이아웃/스타일은 전부 동일.
- * ⭐ useFocusEffect로 교체 — 화면에 포커스가 올 때마다(다른 화면 갔다 뒤로가기로 돌아올 때도)
- * 다시 불러오게 함. 이전엔 useEffect(마운트 1회)라 퀘스트 완료 후 돌아와도 새로고침 안 됐음.
- * ⭐ 원본 디자인엔 "지난 주" 골드 점선 비교선이 있었으나, 백엔드가 이번 주 누적치만 주고
- * 지난 주 데이터는 안 줘서 이번 주 실선만 표시함(지난 주 비교는 백엔드 확장 필요).
- * Matches 06_mypage_flow.dc.html screen 4.
- */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import * as ImagePicker from 'expo-image-picker'; // ⭐ 수정: 프로필 카드 마이페이지와 완전히 동일하게 맞추면서 아바타 업로드도 이식
+import * as ImagePicker from 'expo-image-picker';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
@@ -28,14 +10,14 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { colors, fonts, radii, CATEGORY_DEFS, CATEGORY_ICONS } from '../../theme'; // ⭐ 수정: radii/CATEGORY_DEFS/CATEGORY_ICONS 추가
+import { colors, fonts, radii, CATEGORY_DEFS, CATEGORY_ICONS } from '../../theme';
 import HazeBackground from '../../components/HazeBackground';
 import MainHeader from '../../components/MainHeader';
 import SpringButton from '../../components/SpringButton';
 import PixelProgress from '../../components/PixelProgress';
-import GamePopup, { PopupButtons } from '../../components/GamePopup'; // ⭐ 수정
-import GdqInput from '../../components/GdqInput'; // ⭐ 수정
-import { useToast } from '../../components/Toast'; // ⭐ 수정
+import GamePopup, { PopupButtons } from '../../components/GamePopup';
+import GdqInput from '../../components/GdqInput';
+import { useToast } from '../../components/Toast';
 import {
   ConicAvatar,
   useCountUp,
@@ -47,11 +29,10 @@ import {
   pathLength,
 } from './_parts';
 import { getGrowthStatus, DailyXp } from '../../api/growth';
-import { uploadProfileImage, updateMyProfile } from '../../api/mypage'; // ⭐ 수정: getMyProfile 직접 호출 대신 ProfileContext 사용
-import { useProfile } from '../../context/ProfileContext'; // ⭐ 수정: 마이페이지/드로어와 같은 프로필 소스 공유
-import { getFullImageUrl } from '../shop/_parts'; // ⭐ 수정: 장착 테두리 image_url 절대경로 변환
+import { uploadProfileImage, updateMyProfile } from '../../api/mypage';
+import { useProfile } from '../../context/ProfileContext';
+import { getFullImageUrl } from '../shop/_parts';
 
-// ⭐ 수정: 관심카테고리 key → 화면 표기 라벨 (MyPageScreen과 동일 로직)
 function categoryLabel(key: string): string {
   return CATEGORY_DEFS.find((c) => c.key === key)?.label ?? key;
 }
@@ -66,14 +47,14 @@ function dayLabel(dateStr: string): string {
 }
 
 const WeeklyChart = React.memo(function WeeklyChart({ graph }: { graph: DailyXp[] }) {
-  const rawValues = graph.map((d) => d.cumulative_xp); // null 포함, 길이 7 유지
+  const rawValues = graph.map((d) => d.cumulative_xp);
   const knownValues = rawValues.filter((v): v is number => v !== null);
   const maxV = Math.max(...knownValues, 10);
   const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxV * f));
 
   const len = pathLength(rawValues, maxV);
-  const draw = useSharedValue(0); // 0 → 1 (this-week line draw)
-  const fade = useSharedValue(0); // dots fade
+  const draw = useSharedValue(0);
+  const fade = useSharedValue(0);
 
   useEffect(() => {
     draw.value = withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.cubic) });
@@ -86,7 +67,6 @@ const WeeklyChart = React.memo(function WeeklyChart({ graph }: { graph: DailyXp[
   return (
     <View style={{ width: '100%', aspectRatio: CHART_LAYOUT.W / CHART_LAYOUT.H }}>
       <Svg width="100%" height="100%" viewBox={`0 0 ${CHART_LAYOUT.W} ${CHART_LAYOUT.H}`}>
-        {/* gridlines */}
         {grid.map((g, i) => (
           <Line
             key={i}
@@ -98,7 +78,6 @@ const WeeklyChart = React.memo(function WeeklyChart({ graph }: { graph: DailyXp[
             strokeWidth={1}
           />
         ))}
-        {/* 이번 주 — 초록 실선(오늘까지만, 그려지는 애니메이션) */}
         <AnimatedPath
           animatedProps={drawProps}
           d={chartLine(rawValues, maxV)}
@@ -109,7 +88,6 @@ const WeeklyChart = React.memo(function WeeklyChart({ graph }: { graph: DailyXp[
           strokeLinejoin="round"
           strokeDasharray={len}
         />
-        {/* dots (오늘까지만, fade-in) */}
         {graph.map((d, i) =>
           d.cumulative_xp === null ? null : (
             <AnimatedPath
@@ -120,7 +98,6 @@ const WeeklyChart = React.memo(function WeeklyChart({ graph }: { graph: DailyXp[
             />
           )
         )}
-        {/* day labels — 일요일부터 7일 전체 표시 */}
         {graph.map((d, i) => (
           <SvgText key={i} x={chartX(i, graph.length)} y={CHART_LAYOUT.H - 4} fontSize={10} fill="#888" textAnchor="middle">
             {dayLabel(d.date)}
@@ -132,8 +109,6 @@ const WeeklyChart = React.memo(function WeeklyChart({ graph }: { graph: DailyXp[
 });
 
 export default function MyLevelScreen({ navigation }: any) {
-  // ⭐ 수정: 프로필(이름/칭호/레벨/연속접속일/이미지/관심카테고리)은 마이페이지·드로어와
-  // 공유하는 ProfileContext에서 가져온다 — 이 화면에서 수정해도 즉시 다른 화면에 반영됨.
   const { profile, loading: profileLoading, error: profileError, refreshProfile, setProfile } = useProfile();
   const [level, setLevel] = useState(1);
   const [currentXp, setCurrentXp] = useState(0);
@@ -145,22 +120,18 @@ export default function MyLevelScreen({ navigation }: any) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const toast = useToast();
 
-  // ⭐ 수정: 프로필 수정(닉네임/관심카테고리) 모달 상태 — MyPageScreen과 동일
   const [editVisible, setEditVisible] = useState(false);
   const [editNickname, setEditNickname] = useState('');
   const [editNickError, setEditNickError] = useState<string | null>(null);
   const [editCats, setEditCats] = useState<Record<string, boolean>>({});
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // ⭐ 수정: 포커스될 때마다 프로필 재조회 (칭호 장착/프로필 수정 후 돌아와도 최신 반영)
   useFocusEffect(
     useCallback(() => {
       refreshProfile();
     }, [refreshProfile])
   );
 
-  // ⭐ 수정: useEffect(마운트 1회) → useFocusEffect(포커스 올 때마다) - 퀘스트 완료 후
-  // Ranking 갔다 뒤로가기로 돌아와도 최신 데이터로 다시 불러오게.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -187,7 +158,6 @@ export default function MyLevelScreen({ navigation }: any) {
     }, [])
   );
 
-  // ⭐ 수정: 프로필 이미지 탭 → 갤러리 열기 → 업로드 (MyPageScreen과 동일)
   const pickAndUploadAvatar = async () => {
     if (uploadingImage) return;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -213,7 +183,6 @@ export default function MyLevelScreen({ navigation }: any) {
     }
   };
 
-  // ⭐ 수정: 연필 버튼 탭 → 현재 프로필 값으로 수정 모달 초기화 후 오픈
   const openEditProfile = () => {
     if (!profile) return;
     setEditNickname(profile.nickname);
@@ -228,7 +197,6 @@ export default function MyLevelScreen({ navigation }: any) {
 
   const toggleEditCat = (key: string) => setEditCats((s) => ({ ...s, [key]: !s[key] }));
 
-  // ⭐ 수정: 닉네임(2~10자) + 관심카테고리 부분 수정 저장
   const saveProfile = async () => {
     const nick = editNickname.trim();
     if (nick.length < 2 || nick.length > 10) {
@@ -265,7 +233,6 @@ export default function MyLevelScreen({ navigation }: any) {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        {/* profile card — MyPageScreen 프로필 카드와 완전히 동일 (아바타 업로드/닉네임·관심카테고리 수정 포함) */}
         <View style={styles.profileCard}>
           <Pressable onPress={pickAndUploadAvatar} disabled={uploadingImage}>
             <ConicAvatar
@@ -320,7 +287,6 @@ export default function MyLevelScreen({ navigation }: any) {
           </View>
         ) : (
           <>
-            {/* xp bar — 이번 레벨 안에서의 진행률로 표시(레벨업마다 0%로 리셋) */}
             <View style={styles.xpBlock}>
               <View style={styles.xpHead}>
                 <Text style={styles.xpLv}>LV.{level}</Text>
@@ -342,7 +308,6 @@ export default function MyLevelScreen({ navigation }: any) {
               </View>
             </View>
 
-            {/* weekly chart */}
             <Text style={styles.chartTitle}>주간 경험치 추이</Text>
             <View style={styles.chartCard}>
               {graph.length === 0 ? (
@@ -362,13 +327,11 @@ export default function MyLevelScreen({ navigation }: any) {
           </>
         )}
 
-        {/* → Rank */}
         <SpringButton style={styles.rankBtn} onPress={() => navigation.navigate('Ranking')}>
           <Text style={styles.rankBtnText}>랭킹 보러가기</Text>
         </SpringButton>
       </ScrollView>
 
-      {/* ⭐ 수정: 프로필 수정(닉네임/관심카테고리) 모달 — MyPageScreen과 동일 */}
       <GamePopup visible={editVisible} onClose={() => setEditVisible(false)} title="프로필 수정" width={320}>
         <View style={{ alignSelf: 'stretch' }}>
           <Text style={styles.editLabel}>닉네임</Text>
@@ -421,7 +384,6 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   body: { padding: 16, paddingBottom: 28 },
 
-  // ⭐ 수정: profileCard 이하 프로필 카드 스타일 세트 — MyPageScreen.tsx와 완전히 동일(1:1 이식)
   profileCard: {
     backgroundColor: colors.parchment,
     borderWidth: 2,

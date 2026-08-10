@@ -1,12 +1,3 @@
-/**
- * SCREEN 06-5 · 개인 레벨 랭킹 (route Rank, back) — 레벨/랭킹전 정렬 탭(SegmentedTabs,
- * 슬라이딩 골드 필) · 랭킹 테이블(순위·닉네임·레벨/점수, 스태거 등장, 내 행 불투명 골드 하이라이트) ·
- * 하단엔 두 탭 다 sticky 내 순위(진한 골드 박스)를 표시. "랭킹전" 탭은 내가 참여 중인
- * 동네대항전 지역의 개인 기여 랭킹 — /map/main(내 지역 조회) + /map/region-ranking/{region_id}
- * 재사용, is_me로 상위 10명 밖에 있어도 하단 sticky 박스로는 항상 내 순위가 보임.
- * useFocusEffect로 화면 포커스마다(뒤로가기로 돌아올 때도) 다시 불러옴.
- * Matches 06_mypage_flow.dc.html screen 5.
- */
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -21,16 +12,14 @@ import { getLeaderboard, LeaderboardEntry } from '../../api/growth';
 import { getMapMain, getRegionRanking, PersonalRankingEntry } from '../../api/map';
 
 export default function RankScreen({ navigation, route }: any) {
-  const [mode, setMode] = useState(0); // 0 레벨(실API) · 1 랭킹전(내 지역 동네대항전 개인 기여, 실API)
+  const [mode, setMode] = useState(0);
 
-  // 레벨 탭
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
   const [nearbyRanks, setNearbyRanks] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 랭킹전 탭 — 동네대항전 개인 기여 (전체 목록, 화면에서 top10 자르고 내 항목은 별도로 찾음)
   const [hasRegion, setHasRegion] = useState(true);
   const [regionName, setRegionName] = useState<string | null>(null);
   const [regionRanking, setRegionRanking] = useState<PersonalRankingEntry[]>([]);
@@ -41,7 +30,6 @@ export default function RankScreen({ navigation, route }: any) {
     useCallback(() => {
       let cancelled = false;
 
-      // 레벨 탭
       setLoading(true);
       setError(null);
       getLeaderboard()
@@ -58,7 +46,6 @@ export default function RankScreen({ navigation, route }: any) {
           if (!cancelled) setLoading(false);
         });
 
-      // 랭킹전 탭 — 내 참여 지역 확인 후 그 지역 개인 기여 랭킹 조회
       setBattleLoading(true);
       setBattleError(null);
       getMapMain()
@@ -105,7 +92,6 @@ export default function RankScreen({ navigation, route }: any) {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        {/* sort tabs — 레벨 / 랭킹전 */}
         <View style={styles.tabs}>
           <SegmentedTabs tabs={['레벨', '랭킹전']} index={mode} onChange={setMode} />
         </View>
@@ -140,7 +126,6 @@ export default function RankScreen({ navigation, route }: any) {
                 ))}
               </View>
 
-              {/* top10 밖일 때만 내 앞뒤 순위 별도로 표시 */}
               {!myInTop && nearbyRanks.length > 0 && (
                 <>
                   <Text style={styles.gapHint}>· · ·</Text>
@@ -203,7 +188,6 @@ export default function RankScreen({ navigation, route }: any) {
         )}
       </ScrollView>
 
-      {/* my rank — sticky gold highlight, 두 탭 다 지원 */}
       {mode === 0 && myEntry ? (
         <LinearGradient
           colors={['rgba(238,246,240,0)', colors.screenBg]}
@@ -275,7 +259,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EEF1F0',
   },
-  // ⭐ 수정: 반투명 오버레이(rgba) 대신 불투명 배경 + 굵은 골드 왼쪽 테두리로 확실히 보이게
   rowMe: {
     backgroundColor: colors.parchment,
     borderLeftWidth: 4,
@@ -286,7 +269,6 @@ const styles = StyleSheet.create({
   rowName: { flex: 1, fontSize: 14, color: colors.textPrimary, fontFamily: fonts.bodyR },
   rowVal: { fontSize: 14, fontWeight: '700', color: colors.xpGreen, fontFamily: fonts.bodyB },
 
-  // sticky my-rank
   stickyWrap: {
     position: 'absolute',
     bottom: 0,

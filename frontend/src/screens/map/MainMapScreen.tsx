@@ -1,13 +1,3 @@
-/**
- * SCREEN 05·1+2 · 지도메인 + 대항전 전국지도 — 지도 탭 ROOT (전국 뷰 전용).
- * 내 주변 둘러보기(상단) + 전국(시/도) 스타일라이즈드 SVG 지도(우리 팀=경기도 골드, pulse/pin) +
- * 팀 변경하기(팀 선택 모달, 지도 우측 하단 오버레이) + 시/도별 랭킹(/map/national-ranking).
- * 참여 지역 상태는 /map/main 실API로 조회, 변경은 /map/team-select 실API로 저장.
- * teamRegion/teamSigungu는 지역 미설정 시 빈 문자열로 유지 — KoreaMapDrilldown이 이걸 보고
- * "우리 팀" 태그/하이라이트를 숨긴다 (하드코딩된 기본값이 잘못 표시되던 버그 수정).
- * "내 위치·지역 변경" 배너는 제거함 — 실시간 GPS 연동은 별도 작업으로 진행 예정, 팀 변경은 지도에 이미 있어 중복.
- * 시/도를 2탭으로 확정 선택하면 SiDoMap 화면으로 이동(드릴다운은 이 화면 안에서 안 함).
- */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -24,7 +14,6 @@ import { getNationalRanking, NationalRankingEntry, getMapMain, selectTeamRegion 
 export default function MainMapScreen({ navigation, route }: any) {
   const toast = useToast();
 
-  // 참여 지역 조회 전엔 "설정하기"/"변경하기" 배너가 잘못 깜빡이지 않도록 teamLoading으로 가드
   const [teamLoading, setTeamLoading] = useState(true);
   const [teamSet, setTeamSet] = useState(false);
   const [teamSubmitting, setTeamSubmitting] = useState(false);
@@ -53,7 +42,6 @@ export default function MainMapScreen({ navigation, route }: any) {
         }
       })
       .catch(() => {
-        // 조회 실패 시엔 "설정하기" 배너로 폴백 - 유저가 다시 시도할 수 있게
         if (!cancelled) setTeamSet(false);
       })
       .finally(() => {
@@ -113,12 +101,10 @@ export default function MainMapScreen({ navigation, route }: any) {
       <MainHeader />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* 내 주변 둘러보기 — 랭킹에 밀려 아래로 안 가도록 상단 배치 */}
         <SpringButton style={styles.nearbyBtn} onPress={() => navigation.navigate('VolSearch')}>
           <Text style={styles.nearbyText}>내 주변 둘러보기</Text>
         </SpringButton>
 
-        {/* 지도 카드 — 전국 지도, 시/도를 2탭으로 확정하면 SiDoMap 화면으로 이동 */}
         <View style={styles.mapCard}>
           <KoreaMapDrilldown
             teamRegion={teamRegion}
@@ -141,7 +127,6 @@ export default function MainMapScreen({ navigation, route }: any) {
           )}
         </View>
 
-        {/* 시/도별 랭킹 */}
         <Text style={styles.sectionTitle}>🏆 시/도별 랭킹</Text>
         {rankLoading ? (
           <View style={styles.centerBox}>

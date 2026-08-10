@@ -1,20 +1,3 @@
-/**
- * SCREEN 05·5+6+7 · 내 주변 둘러보기 + 장소 검색 + 핀 클릭 간략정보.
- * 실제 GPS 위치(expo-location) + 카카오맵(WebView, KakaoMapView) + /map/volunteer-centers 실API.
- * 이 화면에 들어올 때마다 GPS를 새로 읽어서 지도 표시용으로 쓰는 동시에
- * /auth/me/location으로 서버에도 저장함(User.current_latitude/current_longitude, 주기적 갱신은 안 함).
- * /map/volunteer-centers는 "봉사센터" 단위가 아니라 VMS 모집공고 단위(같은 기관에 모집글이 여러 개면
- * 행도 여러 개)라서, 같은 이름+주소(없으면 좌표)를 하나의 장소로 묶어 마커/리스트를 중복 없이 보여줌.
- * 한 장소에 활동이 여러 건이면 상세정보 화면에서 전부 카드로 나열함.
- * 지도(고정 높이) 아래에 3km 이내 리스트를 보여줌 - 리스트 항목 탭하면 마커 탭과 동일하게 바텀시트가 뜨고,
- * 지도가 그 장소로 이동(panTo)하며, 화면도 지도가 보이도록 위로 스크롤됨.
- * 검색: 타이핑할 때마다(300ms 디바운스) 카카오 로컬 검색 REST API(kakaoLocal.ts)로 후보를 여러 개
- * 받아 검색창 아래 드롭다운으로 보여주고, 사용자가 직접 하나를 선택함 - 예전처럼 "1등 결과로
- * 무조건 이동"하지 않음. 선택하면 그 좌표로 지도 이동 + /map/volunteer-centers 재조회.
- * 후보 선택 시 setQuery()로 입력창 텍스트를 바꾸는데, 이게 다시 디바운스 검색을 트리거해서
- * 드롭다운이 재등장하는 버그가 있었음 - suppressNextSearchRef로 그 한 번만 재검색을 건너뜀.
- * 내 실제 위치(빨간 점)는 검색해도 유지되고, 지도 우하단 현위치 버튼으로 되돌아갈 수 있음.
- */
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -53,7 +36,6 @@ function formatDist(km: number) {
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
 }
 
-// 지도 우하단 "현위치로 이동" FAB 아이콘 (크로스헤어)
 function LocateIcon({ size = 20, color = colors.primaryDark }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round">
@@ -63,7 +45,6 @@ function LocateIcon({ size = 20, color = colors.primaryDark }: { size?: number; 
   );
 }
 
-// 같은 기관(이름+주소, 없으면 좌표)의 모집공고를 하나의 장소로 묶은 단위
 type LocationGroup = {
   key: string;
   vol_name: string | null;
@@ -104,13 +85,11 @@ function groupCenters(centers: VolunteerCenter[], mapCenter: LatLng): LocationGr
 export default function NearbyScreen({ navigation, route }: any) {
   const mapRef = useRef<KakaoMapViewHandle>(null);
   const scrollRef = useRef<ScrollView>(null);
-  // handleSelectSuggestion에서 setQuery()로 텍스트를 바꿀 때는 재검색(디바운스 이펙트)을 건너뛰기 위한 플래그
   const suppressNextSearchRef = useRef(false);
 
   const [query, setQuery] = useState('');
   const [pin, setPin] = useState<(LocationGroup & { dist: string }) | null>(null);
 
-  // 검색 자동완성 드롭다운
   const [suggestions, setSuggestions] = useState<KakaoPlace[]>([]);
   const [searching, setSearching] = useState(false);
   const [suggestNoResults, setSuggestNoResults] = useState(false);
@@ -142,7 +121,6 @@ export default function NearbyScreen({ navigation, route }: any) {
       setMyLoc(loc);
       setMapCenter(loc);
 
-      // 서버에도 최근 위치 저장 - 실패해도 지도/검색은 정상 동작해야 하니 별도로 감싸서 무시
       updateMyLocation(loc.lat, loc.lng).catch(() => {});
 
       await loadCentersAt(loc);
@@ -157,9 +135,6 @@ export default function NearbyScreen({ navigation, route }: any) {
     initLocation();
   }, [initLocation]);
 
-  // 검색어가 바뀔 때마다 300ms 뒤에 자동완성 후보 조회 (연타 방지 디바운스)
-  // suppressNextSearchRef가 true면 방금 사용자가 후보를 "선택"해서 query가 프로그램적으로 바뀐 것이므로
-  // 재검색하지 않고 드롭다운만 닫음 (안 그러면 선택한 장소명으로 다시 검색이 돌면서 드롭다운이 또 뜸)
   useEffect(() => {
     const q = query.trim();
     if (suppressNextSearchRef.current) {
@@ -239,7 +214,6 @@ export default function NearbyScreen({ navigation, route }: any) {
     moveToPlace(place);
   };
 
-  // 엔터/검색 키 - 후보가 떠 있으면 그중 첫 번째로 이동(직접 목록에서 고르는 걸 기본 흐름으로 유도)
   const handleSubmitSearch = () => {
     if (suggestions.length > 0) {
       handleSelectSuggestion(suggestions[0]);
@@ -251,7 +225,6 @@ export default function NearbyScreen({ navigation, route }: any) {
     setPlaceName(null);
     setQuery('');
     setMapCenter(myLoc);
-    // 상태 변경으로 인한 리마운트만 믿지 않고, 이미 떠 있는 지도 인스턴스에도 직접 이동 명령
     mapRef.current?.panTo(myLoc.lat, myLoc.lng);
     setLoading(true);
     loadCentersAt(myLoc).finally(() => setLoading(false));
@@ -263,7 +236,6 @@ export default function NearbyScreen({ navigation, route }: any) {
       <HazeBackground />
       <MainHeader showBack title={placeName ? `'${placeName}' 주변` : '내 주변 둘러보기'} />
 
-      {/* 검색 + 자동완성 드롭다운 */}
       <View style={styles.searchWrap}>
         <GdqInput
           value={query}
@@ -308,7 +280,6 @@ export default function NearbyScreen({ navigation, route }: any) {
       </View>
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* Kakao 3km 지도 - 고정 높이 */}
         <View style={styles.mapArea}>
           {loading ? (
             <View style={styles.centerBox}>
@@ -349,7 +320,6 @@ export default function NearbyScreen({ navigation, route }: any) {
           ) : null}
         </View>
 
-        {/* 지도 아래 리스트 */}
         {!loading && !locError && (
           <>
             <Text style={styles.sectionTitle}>📍 {RADIUS_KM}km 이내 봉사시설 ({groups.length})</Text>
@@ -387,7 +357,6 @@ export default function NearbyScreen({ navigation, route }: any) {
         )}
       </ScrollView>
 
-      {/* 핀 간략정보 바텀시트 */}
       <BottomSheet visible={!!pin} onClose={() => setPin(null)}>
         {pin ? (
           <View>
