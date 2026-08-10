@@ -13,7 +13,6 @@ export type GrowthStatus = {
   weekly_xp_graph: DailyXp[];
 };
 
-/** 경험치바(레벨/XP) + 이번 주(일~오늘) 누적경험치 그래프 (MyLevelScreen) */
 export async function getGrowthStatus(): Promise<GrowthStatus> {
   const response = await api.get('/growth/status');
   if (!response.data.success) {
@@ -37,7 +36,6 @@ export type LeaderboardResponse = {
   total_users: number;
 };
 
-/** 전체 유저 XP 리더보드 (RankingScreen "레벨" 탭) */
 export async function getLeaderboard(): Promise<LeaderboardResponse> {
   const response = await api.get('/growth/leaderboard');
   if (!response.data.success) {

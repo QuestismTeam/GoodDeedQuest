@@ -111,9 +111,6 @@ export function MapStack() {
       <S.Screen name="RegionDetails" component={RegionDetailsScreen} />
       <S.Screen name="VolSearch" component={VolSearchScreen} />
       <S.Screen name="VolunteerDetail" component={VolunteerDetailScreen} />
-      {/* ⭐ 수정: 지도에서 바로 "퀘스트 시작"으로 넘어갈 수 있게 퀘스트 상세+인증 체인을
-          여기에도 등록. 안 하면 지도 탭에서 퀘스트를 시작해도 이동할 화면이 없어서 깨진다.
-          (VolunteerDetail을 HomeStack에도 중복 등록해둔 것과 같은 이유 - 탭이 안 바뀌게) */}
       <S.Screen name="QuestDetail" component={QuestDetailScreen} />
       <S.Screen name="QuestVerify" component={QuestVerifyScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
       <S.Screen name="QuestChallenge" component={QuestChallengeScreen} />

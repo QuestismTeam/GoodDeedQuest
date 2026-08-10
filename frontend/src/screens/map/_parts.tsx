@@ -1,13 +1,3 @@
-/**
- * Local subcomponents for the 지도(map)·대항전 flow (05).
- * - NationalMap / GyeonggiMap: stylized low-poly SVG maps hand-authored inline
- *   (the real SGIS boundary SVGs are large / not importable — see CONTRACT).
- *   Team region highlighted gold, tappable regions, press feedback.
- * - TeamPin / PulseRing / MapPinIcon: map markers with bob / ping motion.
- * - RankRow / UserRankRow: ranking rows with staggered entrance + animated bar.
- * - TeamSelectPopup: 참여 지역 선택 (대항전 팀 선택) — GamePopup based, /map/team-select 연결.
- * Motion = Reanimated, transform/opacity only.
- */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -26,7 +16,6 @@ import PixelProgress from '../../components/PixelProgress';
 import { PROVINCE_NAME_TO_CITY_ID, resolveCityId } from './provinceCityIds';
 import { getRegionsByCity, RegionOption } from '../../api/map';
 
-/* ── palette (map washes — greens NOT present in theme.ts, defined locally) ── */
 export const MAP = {
   fill: '#C8E6C9',
   fillSel: colors.gold,
@@ -34,20 +23,18 @@ export const MAP = {
   grid: 'rgba(255,255,255,0.4)',
   canvasA: '#DDEBE0',
   canvasB: '#CFE4D6',
-  myRing: CATEGORY_COLORS.volunteer.accent, // #5B9BD5 (theme token)
+  myRing: CATEGORY_COLORS.volunteer.accent,
 };
 
 const poly = (pts: number[][]) =>
   'M' + pts.map((p) => `${p[0]},${p[1]}`).join(' L') + ' Z';
 
-/* centroid helper for placing in-svg team dot */
 const centroid = (pts: number[][]) => {
   const x = pts.reduce((a, p) => a + p[0], 0) / pts.length;
   const y = pts.reduce((a, p) => a + p[1], 0) / pts.length;
   return { x, y };
 };
 
-/* ── 전국 시/도 (stylized) ── viewBox 240 x 340 ── */
 export type Region = { key: string; label: string; team?: boolean; pts: number[][] };
 
 export const REGIONS: Region[] = [
@@ -67,7 +54,6 @@ export const REGIONS: Region[] = [
 
 const TEAM_C = centroid(REGIONS[0].pts);
 
-/* ── 경기도 시군구 (stylized) ── viewBox 240 x 210 ── */
 export const SIGUNGU: Region[] = [
   { key: 'goyang', label: '고양시', pts: [[70, 40], [112, 38], [118, 70], [88, 80], [66, 62]] },
   { key: 'bucheon', label: '부천시', pts: [[46, 82], [78, 80], [80, 108], [50, 112]] },
@@ -78,7 +64,6 @@ export const SIGUNGU: Region[] = [
   { key: 'yongin', label: '용인시', pts: [[140, 128], [186, 124], [194, 164], [158, 178], [138, 156]] },
 ];
 
-/* ═══════════════ MAPS ═══════════════ */
 
 function RegionPath({
   r,
@@ -115,7 +100,6 @@ export function NationalMap({
       {REGIONS.map((r) => (
         <RegionPath key={r.key} r={r} selected={selectedKey === r.key} onPress={onRegionPress} />
       ))}
-      {/* team pin dot (in-svg, always aligned to 경기도 centroid) */}
       <Circle cx={TEAM_C.x} cy={TEAM_C.y} r={6} fill={colors.primaryDark} />
       <Circle cx={TEAM_C.x} cy={TEAM_C.y} r={2.4} fill={colors.parchment} />
     </Svg>
@@ -138,9 +122,7 @@ export function GyeonggiMap({
   );
 }
 
-/* ═══════════════ MARKERS ═══════════════ */
 
-/** Bobbing "우리 팀 · 경기도" pill (design mp-pin). Absolute — position via style. */
 export function TeamPin({ label = '우리 팀 · 경기도', style }: { label?: string; style?: any }) {
   const bob = useSharedValue(0);
   useEffect(() => {
@@ -157,7 +139,6 @@ export function TeamPin({ label = '우리 팀 · 경기도', style }: { label?: 
   );
 }
 
-/** Expanding ping ring (design mp-ping). */
 export function PulseRing({ color = colors.gold, size = 26, style }: { color?: string; size?: number; style?: any }) {
   const p = useSharedValue(0);
   useEffect(() => {
@@ -175,7 +156,6 @@ export function PulseRing({ color = colors.gold, size = 26, style }: { color?: s
   );
 }
 
-/** Gold teardrop map pin (design mapPin) — react-native-svg. */
 export function MapPinIcon({ size = 30 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -211,9 +191,7 @@ export function PinDot({ size = 18 }: { size?: number }) {
   );
 }
 
-/* ═══════════════ RANKING ROWS ═══════════════ */
 
-// 랭킹 메달 색: 1위 골드 · 2위 실버 · 3위 브론즈 · 4위~ 보조 텍스트색
 const RANK_COLORS = [colors.gold, '#A8A8A8', '#CD7F32'];
 const rankColor = (index: number) => RANK_COLORS[index] ?? colors.textSecondary;
 
@@ -229,7 +207,6 @@ export function RankRow({
   score: string;
   pct: number;
   index: number;
-  /** ⭐ 추가: 이름 아래 보조 텍스트 (예: "52명 참여") - 없으면 안 그림 */
   subtitle?: string;
   onPress?: () => void;
 }) {
@@ -278,9 +255,7 @@ export function UserRankRow({
   );
 }
 
-/* ═══════════════ 팀 선택 모달 ═══════════════ */
 
-// 지도 SVG(province param)와 동일한 표시명 소스 재사용 - 강원/전북 개명 이슈까지 이미 처리돼 있음
 const SIDO_LIST = Object.keys(PROVINCE_NAME_TO_CITY_ID);
 
 export function TeamSelectPopup({
@@ -296,7 +271,6 @@ export function TeamSelectPopup({
   onConfirm: (regionId: number, sido: string, sigunguName: string) => void;
   region?: string;
   city?: string;
-  /** 부모 화면이 selectTeamRegion() API 호출 중일 때 true - 확인 버튼 비활성화/로딩 표시 */
   submitting?: boolean;
 }) {
   const [sido, setSido] = useState(region);
@@ -330,7 +304,6 @@ export function TeamSelectPopup({
     }
   }, []);
 
-  // 팝업이 열릴 때 현재 선택값으로 동기화 + 시군구 목록 실API 갱신
   useEffect(() => {
     if (visible) {
       setSido(region);
@@ -347,7 +320,6 @@ export function TeamSelectPopup({
   return (
     <GamePopup visible={visible} onClose={onClose} title="참여 지역 선택" width={320}>
       <View style={{ alignSelf: 'stretch' }}>
-        {/* 시/도 */}
         <Pressable
           style={styles.selRow}
           onPress={() => {
@@ -378,7 +350,6 @@ export function TeamSelectPopup({
           </View>
         ) : null}
 
-        {/* 시군구 */}
         <Pressable
           style={styles.selRow}
           onPress={() => {
@@ -434,7 +405,6 @@ export function TeamSelectPopup({
 }
 
 const styles = StyleSheet.create({
-  /* team pin */
   teamPinWrap: { position: 'absolute', alignItems: 'center', zIndex: 3 },
   teamPinPill: {
     backgroundColor: colors.gold,
@@ -456,7 +426,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#C99A20',
     marginTop: -1,
   },
-  /* ranking rows */
   rankRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.hairline },
   rowPressed: { backgroundColor: '#F4F9F5' },
   rankTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
@@ -466,12 +435,10 @@ const styles = StyleSheet.create({
   rankSubtitle: { fontSize: 11, color: colors.textSecondary, fontFamily: fonts.bodyR, marginTop: 2 },
   rankScore: { fontFamily: fonts.pixel, fontSize: 13, color: colors.gold },
   barWrap: { paddingLeft: 42 },
-  /* user rows */
   userRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#EFE6CC' },
   userRank: { width: 56, fontFamily: fonts.pixel, fontSize: 14, color: colors.primaryDark },
   userName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary, fontFamily: fonts.bodyM },
   userXp: { fontWeight: '800', fontSize: 14, color: colors.xpGreen, fontFamily: fonts.bodyB },
-  /* team-select modal */
   selRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -497,7 +464,6 @@ const styles = StyleSheet.create({
   },
   confirmBtnDisabled: { opacity: 0.5 },
   confirmText: { fontFamily: fonts.pixel, fontSize: 16, color: colors.parchment },
-  /* 지역 인라인 드롭다운 (중첩 모달 대신) */
   dropdown: {
     marginTop: -6,
     marginBottom: 10,
