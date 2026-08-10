@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Dict, Any, Final
 
@@ -13,6 +13,8 @@ logger: Final = logging.getLogger(__name__)
 WEATHER_API_TIMEOUT_SECONDS: Final[float] = 3.0
 # 날씨 조회 실패 및 값 누락 시 사용하는 기본 코드 (0 = 맑음)
 DEFAULT_WEATHER_CODE: Final[int] = 0
+
+KST: Final = timezone(timedelta(hours=9))
 
 def get_weather(latitude: float, longitude: float) -> Dict[str, Any]:
     """Open-Meteo API 호출 (위도, 경도로 실시간 날씨 정보 조회)"""
@@ -40,7 +42,7 @@ def analyze_situation(state: RecommendState) -> Dict[str, Any]:
     latitude = state.get("latitude")
     longitude = state.get("longitude")
 
-    now = datetime.now()
+    now = datetime.now(KST) 
     weekday = now.weekday()
 
     if weekday in [5, 6]:   # 주말

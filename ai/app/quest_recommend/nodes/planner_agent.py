@@ -28,7 +28,10 @@ class PlannerOutput(BaseModel):
     llm_constraints: List[str] = Field(
         ...,
         # "퀘스트가 이 사용자에게 맞는지 판정할 때 쓰는 2~4개의 조건 목록 (예: '사용자의 관심사나 요청 주제와 관련이 있어야 함', '레벨 1이 부담 없이 할 수 있어야 함'). 각 조건은 '수행할 명령'이 아니라 '확인할 속성' 형태로 작성."
-        description="A list of 2 to 4 conditions used to judge whether a quest fits this user (e.g., 'the quest topic must relate to the user's interests or request topic', 'must be achievable for a level 1 beginner'). Write each condition as a property to check, not as an order to carry out."
+        # ⭐ 수정: 조건 개수를 2~4개에서 최대 2개로 줄이고, '초점' 대신 '관련'으로 쓰도록 지시.
+        # "퀘스트가 이 사용자에게 맞는지 판정할 때 쓰는 최대 2개의 넓은 조건.
+        #  '~에 초점을 맞춰야 한다'가 아니라 '~와 관련이 있으면 된다' 형태로 쓴다."
+        description="At most 2 broad conditions used to judge whether a quest fits this user. Phrase each as 'relates to X', never as 'focuses on X'. Write them as properties to check, not as orders to carry out."
     )
 
 def analyze_strategy(state: RecommendState) -> Dict[str, Any]:
@@ -50,7 +53,15 @@ def analyze_strategy(state: RecommendState) -> Dict[str, Any]:
     if rejection_reasons_en:
         logger.info(f"Critic 반려 피드백 수용 전략 보정 가동 (반려 건수: {len(rejection_reasons_en)}건)")
         # \n- 치명적 반려 피드백: 이전 퀘스트 후보들이 다음 이유로 반려되었습니다: {rejection_reasons}. 이 반려 사유들을 극복할 수 있도록 search_query와 llm_constraints를 엄격하게 보정하십시오!
-        rejection_feedback = f"\n- CRITICAL REJECTION FEEDBACK: Previous quest candidates were rejected due to: {rejection_reasons_en}. Adjust search_query and llm_constraints strictly to overcome these rejections!"
+         # ⭐ 수정: 기존 문구는 "조건을 더 엄격하게 보정하라"였는데, 실측 로그에서 반려의 대부분이
+        # '조건이 너무 좁아서' 생긴 것이었다. 엄격하게 만들라고 시키면 다음 회차에 더 많이 반려된다.
+        # 반려가 났다는 건 조건이 좁았다는 신호이므로 넓히는 방향으로 지시한다.
+        rejection_feedback = (
+            f"\n- REJECTION FEEDBACK: In the previous round these candidates were rejected: {rejection_reasons_en}. "
+            "Rejections almost always mean YOUR conditions were too narrow, not that the candidates were bad. "
+            "Rewrite 'llm_constraints' WIDER — drop the condition that caused the rejections, or restate it as a broader 'relates to' condition. "
+            "Do not add new conditions. Widen the search_query instead of narrowing it."
+        )
 
     """
     ("system", "당신은 전문 퀘스트 추천 플래너입니다. 사용자의 정보를 분석하여 추천 전략을 수립하세요.
@@ -115,9 +126,8 @@ The user's interest codes are limited to these six. Each covers the following:
 - environment: cleanups, recycling, resource saving, climate action
 - sharing: donations, sharing goods, sharing meals
 - animal: rescued animal care, animal welfare
-- community: helping neighbours, local events, AND support for elderly people,
-- other: Good deeds not covered by the above people with disabilities, children, low-income households and multicultural families — all of these count as COMMUNITY.
-- OTHER: good deeds that fit none of the above
+- community: helping neighbours and local events, AND support for elderly people, people with disabilities, children, low-income households and multicultural families. Supporting a daycare, a public library, a welfare centre or a community centre all count as COMMUNITY.
+- other: good deeds that fit none of the above
 HOW TO WRITE 'llm_constraints' — read carefully, this is the most error-prone part:
 (a) These conditions are applied twice: once as guidance when generating new AI daily good deed quests, and once as scoring criteria for real, already-published volunteer listings that cannot be rewritten. A real listing has a fixed schedule, a fixed audience and a fixed venue, so any condition you invent becomes a hard gate it may be unable to pass.
 (b) Write each condition as a property to check, not as an order to carry out. Write "the quest topic must relate to youth or the local community", not "engage youth in activities" — an order gets misread as a requirement about who performs the activity, and real listings get rejected for no good reason.
@@ -165,6 +175,12 @@ Keep the conditions broad enough that a genuinely relevant real-world volunteer 
     # 3. 정상 반환 (OpenAI 또는 Gemini 성공 시)
     if response:
         strategy_dict = response.model_dump()
+        # ⭐ 수정: 어떤 조건이 걸렸는지 로그로 남긴다. 봉사 반려가 터졌을 때
+        # 반려 사유만 보고는 어떤 조건이 원인인지 알 수 없어 추적이 어려웠다.
+        logger.info(
+            f"추천 전략 수립 완료. 검색어: '{strategy_dict.get('search_query')}', "
+            f"조건: {strategy_dict.get('llm_constraints')}"
+        )
         new_retry = retry_count + 1 if state.get("recommendation_strategy") else retry_count
         return {
             "recommendation_strategy": strategy_dict,
