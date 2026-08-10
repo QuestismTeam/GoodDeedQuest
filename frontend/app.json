@@ -18,14 +18,28 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.seonhaeng.quest"
+      "bundleIdentifier": "com.seonhaeng.quest",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/app-icon.png",
         "backgroundColor": "#033236"
       },
-      "package": "com.seonhaeng.quest"
+      "package": "com.seonhaeng.quest",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ],
+      "runtimeVersion": "1.0.0"
     },
     "plugins": [
       "expo-font",
@@ -70,6 +84,9 @@
       "eas": {
         "projectId": "74b14754-ad3e-4fdb-8e16-c06b559f4846"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/74b14754-ad3e-4fdb-8e16-c06b559f4846"
     }
   }
 }
