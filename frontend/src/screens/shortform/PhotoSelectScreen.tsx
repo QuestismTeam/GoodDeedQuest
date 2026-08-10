@@ -437,7 +437,8 @@ export default function PhotoSelectScreen({ navigation }: any) {
               {preparing ? (
                 <ActivityIndicator color={colors.primaryDark} size="small" />
               ) : (
-                <Text style={styles.ghostText}>AI 대본</Text>
+                // ⭐ 수정: "AI 대본" → "AI 자막"
+                <Text style={styles.ghostText}>AI 자막</Text>
               )}
             </SpringButton>
           </View>
