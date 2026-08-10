@@ -22,7 +22,7 @@ from .agents.render_agent import render_agent
 # 이 함수들은 전부 "State를 받아서 -> 일부 필드를 채운 State를 리턴"하는 동일한 시그니처를 가짐.
 # LangGraph 노드로 등록하려면 이 규칙(State in -> State out)을 지켜야 함.
 
-
+# 검증 통과 여부에 따라 다음에 어느 노드로 갈지 정하는 라우팅 함수
 def route_after_validation(state: ShortFormState) -> str:
     """검증 통과 여부에 따라 다음에 어느 노드로 갈지 정하는 라우팅 함수.
 
@@ -35,7 +35,7 @@ def route_after_validation(state: ShortFormState) -> str:
     return "end"           # 검증 실패 -> END로 이동 (파이프라인 종료)
 
 
-# ⭐ 신규: vision 다음에 rag를 실행할지 스킵할지 정하는 라우팅 함수 (이슈: BGM 재매칭 덮어쓰기 버그 수정)
+# vision 다음에 rag를 실행할지 스킵할지 정하는 라우팅 함수
 def route_after_vision(state: ShortFormState) -> str:
     """
     router.py가 호출 전에 이미 bgm_match를 채워서 넘겼으면(=backend가 이미 확정한 BGM이
