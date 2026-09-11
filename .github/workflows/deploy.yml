@@ -1,9 +1,28 @@
 name: Deploy to EC2
 
+# ============================================================
+# 【2026-09-07 비활성화】
+#
+# 프로젝트를 마무리하면서 EC2 / RDS / S3 를 정리했다.
+# 배포할 서버가 없어졌을 뿐이라, 파이프라인 자체는 그대로 남겨둔다.
+# 아래 push 트리거 두 줄만 주석 처리했다.
+#
+# 다시 켜는 방법:
+#   1. 아래 "push:" 와 "branches:" 주석을 되살린다
+#   2. 저장소 시크릿을 다시 등록한다
+#      DOCKERHUB_USERNAME / DOCKERHUB_TOKEN / EC2_HOST / EC2_SSH_KEY
+#
+# 원래 동작:
+#   main 에 푸시되면 → linux/amd64 이미지 빌드 → Docker Hub 푸시
+#   → EC2 에 SSH 접속 → docker compose pull && up -d
+#
+# dev 의 CI 검증과 main 자동 승격(ci-dev.yml)은 그대로 돈다.
+# 이제 main 까지 병합된 뒤 여기서 멈춘다.
+# ============================================================
 on:
-  push:
-    branches: [main]
-  # 수동 실행도 가능하게 해둔다. 배포만 다시 하고 싶을 때 쓴다.
+  # push:
+  #   branches: [main]
+  # 수동 실행은 남겨둔다. 서버가 없으므로 실행해도 SSH 단계에서 실패한다.
   workflow_dispatch:
 
 jobs:
