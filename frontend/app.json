@@ -66,10 +66,7 @@
       "@react-native-google-signin/google-signin"
     ],
     "extra": {
-      "apiUrl": "https://gooddeedquest.duckdns.org",
-      "eas": {
-        "projectId": "74b14754-ad3e-4fdb-8e16-c06b559f4846"
-      }
+      "apiUrl": "https://gooddeedquest.duckdns.org"
     }
   }
 }
