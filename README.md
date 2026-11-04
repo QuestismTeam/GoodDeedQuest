@@ -16,7 +16,7 @@ AI가 나에게 맞는 선행을 골라 주고, 사진 한 장으로 인증하�
 
 <p align="center"><img src="docs/demo.gif" alt="선행퀘스트 사용 화면 (3배속)" width="320"></p>
 
-원래 속도(5분 3초 · 자막 있음 · 소리 없음)는 [영상 파일](https://raw.githubusercontent.com/QuestismTeam/GoodDeedQuest/dev/docs/demo.mp4)을 내려받아 보세요.
+원래 속도(5분 3초 · 자막 있음 · 소리 없음)는 [영상 파일](docs/demo.mp4)을 내려받아 보세요.
 
 | 홈 | 커뮤니티 | 지도 |
 |---|---|---|
