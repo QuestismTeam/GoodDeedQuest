@@ -178,3 +178,6 @@ CLAUDE.local.md
 CLAUDE.md
 MEMORY.md
 ai/eval/*
+# 프로젝트 종료 시 서버에서 내려받은 백업 (S3 파일, DB 덤프)
+s3-backup/
+*.sql
