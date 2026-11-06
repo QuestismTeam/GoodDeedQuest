@@ -37,8 +37,21 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
 import { login } from '../api/auth';
 import { socialLogin } from '../api/auth';
-import { login as kakaoSDKLogin, getProfile as kakaoGetProfile } from '@react-native-seoul/kakao-login';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+
+/**
+ * 【판단】 Expo Go 에서는 소셜 로그인 버튼을 눌러도 아무 일도 하지 않는다.
+ * 카카오·구글 SDK 는 네이티브 모듈이라 Expo Go 앱 안에 들어 있지 않다.
+ * 맨 위에서 import 하면 Expo Go 는 이 화면을 여는 순간 죽는다.
+ * 그래서 Expo Go 가 아닐 때(개발 빌드·APK)만 require 로 불러온다.
+ * 버튼은 그대로 보여 화면 모양은 개발 빌드와 같다.
+ */
+const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+const kakaoSDK: typeof import('@react-native-seoul/kakao-login') | null =
+  IS_EXPO_GO ? null : require('@react-native-seoul/kakao-login');
+const GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null =
+  IS_EXPO_GO ? null : require('@react-native-google-signin/google-signin').GoogleSignin;
 
 /**
  * 【판단】 구글도 카카오처럼 네이티브 SDK 를 쓴다. 원래는 expo-auth-session 으로
@@ -50,7 +63,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
  * webClientId 를 넣는 게 맞다. 안드로이드에서도 SDK 는 이 값으로 id_token 을
  * 발급받고, 백엔드(verify_google_id_token)가 검증할 때 쓰는 값과 같아야 한다.
  */
-GoogleSignin.configure({
+GoogleSignin?.configure({
   webClientId: '530602948532-eoif1hq6bshlgb7tn5r1dcuruvelubsa.apps.googleusercontent.com',
   iosClientId: '530602948532-3es8kq72k78i1nc5l5qve88q6tofg3ua.apps.googleusercontent.com',
 });
@@ -115,6 +128,7 @@ const onLogin = async () => {
 };
 
 const handleGoogle = async () => {
+  if (!GoogleSignin) return; // Expo Go: 아무 일도 하지 않는다
   try {
     // 【기능】 구글 로그인은 기기의 Play 서비스를 통해 이뤄진다. 없거나 낡은
     //        기기면 여기서 걸러져 아래 signIn 이 이상하게 실패하지 않는다.
@@ -149,9 +163,10 @@ const handleGoogle = async () => {
 }
 
 const handleKakao = async () => {
+    if (!kakaoSDK) return; // Expo Go: 아무 일도 하지 않는다
     try {
-      
-      const result = await kakaoSDKLogin();
+
+      const result = await kakaoSDK.login();
 
       const { token, isNewUser } = await socialLogin(result.accessToken, 'kakao');
 

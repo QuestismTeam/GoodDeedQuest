@@ -7,12 +7,6 @@
     "icon": "./assets/brand/app-icon.png",
     "scheme": "seonhaengquest",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/brand/app-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#033236"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -42,6 +36,15 @@
       "runtimeVersion": "1.0.0"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/app-icon.png",
+          "resizeMode": "contain",
+          "imageWidth": 200,
+          "backgroundColor": "#033236"
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
