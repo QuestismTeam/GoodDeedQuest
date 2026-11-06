@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   // ⭐ 수정: 프로필 로딩 스피너 / 아바타 업로드 중 오버레이
   profileInfoLoading: { alignSelf: 'flex-start' },
   avatarUploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 999,
     backgroundColor: 'rgba(3,50,54,0.45)',
     alignItems: 'center',

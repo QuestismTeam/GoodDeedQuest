@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -84,7 +85,7 @@ function groupCenters(centers: VolunteerCenter[], mapCenter: LatLng): LocationGr
 
 export default function NearbyScreen({ navigation, route }: any) {
   const mapRef = useRef<KakaoMapViewHandle>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const suppressNextSearchRef = useRef(false);
 
   const [query, setQuery] = useState('');

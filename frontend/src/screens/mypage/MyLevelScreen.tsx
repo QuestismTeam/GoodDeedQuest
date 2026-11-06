@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   editCatLabel: { fontSize: 13, fontWeight: '600', fontFamily: fonts.bodyM },
   profileInfoLoading: { alignSelf: 'flex-start' },
   avatarUploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 999,
     backgroundColor: 'rgba(3,50,54,0.45)',
     alignItems: 'center',

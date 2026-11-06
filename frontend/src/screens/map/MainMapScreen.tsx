@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   teamChangeText: { fontFamily: fonts.pixel, fontSize: 12, color: colors.parchment },
   teamOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(3,50,54,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
