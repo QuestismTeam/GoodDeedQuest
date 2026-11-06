@@ -21,16 +21,14 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import boto3
 from langchain_core.messages import HumanMessage
 
 from ..state import ShortFormState, VisionAnalysisResult
+from ...common.s3_client import download_file_from_s3
 from ...common.vision_fallback import invoke_vision_with_fallback  # ⭐ 수정
 
-# 현재는 이 파일 전용 S3 client를 직접 생성해서 씀. ai/app/common에 공용 S3 client가
-# 생기면 그걸로 교체 가능(지금은 존재하지 않아 재사용할 대상이 없음).
-S3_BUCKET = os.getenv("S3_BUCKET_NAME")
-_s3_client = boto3.client("s3", region_name=os.getenv("AWS_REGION"))
+# 【2026-11 로컬 전환】 이 파일 전용 S3 client 를 지우고 ai/app/common/s3_client.py 를 쓴다.
+# 전용 client 는 S3_ENDPOINT_URL 을 몰라서, 로컬 S3 로 바꾸면 여기만 AWS 로 나갔다.
 
 # 이미지 확장자만 우선 지원. 영상(mp4 등)은 별도 처리 방식 결정 필요.
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -57,7 +55,7 @@ def _download_media_from_s3(media_key: str) -> str:
     tmp_path = tmp_file.name
     tmp_file.close()
 
-    _s3_client.download_file(S3_BUCKET, media_key, tmp_path)
+    download_file_from_s3(media_key, tmp_path)
     return tmp_path
 
 

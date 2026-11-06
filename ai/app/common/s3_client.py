@@ -30,9 +30,19 @@ def _create_s3_client():
     .env 에 AWS 키가 있으면 그 키를 쓰고(로컬 개발),
     없으면 boto3가 스스로 자격증명을 찾게 둔다(EC2의 IAM Role).
     """
+    # 【2026-11 로컬 전환】 S3_ENDPOINT_URL 이 있으면 로컬 S3 로 붙는다.
+    # 로컬 S3 는 path 방식만 된다 (이유는 backend/app/common/s3_client.py 참고).
+    endpoint_url = settings.S3_ENDPOINT_URL or None
+
     client_kwargs = {
-        "config": Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+        "config": Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path" if endpoint_url else "virtual"},
+        ),
     }
+
+    if endpoint_url:
+        client_kwargs["endpoint_url"] = endpoint_url
 
     if settings.AWS_REGION:
         client_kwargs["region_name"] = settings.AWS_REGION

@@ -14,7 +14,10 @@ from backend.app.quest_verification.schemas import (
 )
 from backend.app.quest_verification.models import QuestSubmission
 from backend.app.quest_verification.enums import MediaType, SubmissionStatus
-from backend.app.common.s3_client import generate_upload_presigned_url, generate_download_presigned_url
+from backend.app.common.s3_client import (
+    generate_internal_download_url,
+    generate_upload_presigned_url,
+)
 from backend.app.quest_verification.media import (compute_sha256, compute_media_phash, find_nearest_submission, is_duplicate)
 from backend.app.quest_verification.challenge import (
     generate_challenge_code, build_challenge_message, calculate_suspicion, needs_challenge,
@@ -98,7 +101,7 @@ def submit_verification(
             print(f"잘못된 업로드 경로 거절: user={current_user.user_id} key={key}")
             raise HTTPException(status_code=400, detail="잘못된 업로드 경로입니다.")
     
-    media_urls = [generate_download_presigned_url(key) for key in all_keys]
+    media_urls = [generate_internal_download_url(key) for key in all_keys]
     is_video = quest.quest_type != QuestType.VOLUNTEER
 
     media_hash = None
@@ -247,7 +250,7 @@ def submit_challenge(
     if not req.s3_key.startswith(expected_prefix) or ".." in req.s3_key:
         print(f"잘못된 챌린지 경로 거절: user={current_user.user_id} key={req.s3_key}")
         raise HTTPException(status_code=400, detail="잘못된 업로드 경로입니다.")
-    media_url = generate_download_presigned_url(req.s3_key)
+    media_url = generate_internal_download_url(req.s3_key)
     try:
         response = httpx.post(
             f"{get_setting().AI_SERVICE_URL}/ai/verify-challenge",
