@@ -5,6 +5,7 @@
  */
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator} from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -28,7 +29,7 @@ export default function AiRecommendScreen({ navigation }: any) {
   const [msgs, setMsgs] = useState<Msg[]>(INITIAL);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const scrollDown = () => requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 

@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   newBadge: { backgroundColor: AD.red, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   newText: { color: colors.white, fontSize: 11, fontWeight: '600', fontFamily: fonts.bodyB },
   bannerGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: colors.gold,

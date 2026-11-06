@@ -274,8 +274,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#9CA3AF' },
-  transRoot: { ...StyleSheet.absoluteFillObject, zIndex: 40, overflow: 'hidden' },
-  transCenter: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  transRoot: { ...StyleSheet.absoluteFill, zIndex: 40, overflow: 'hidden' },
+  transCenter: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 12 },
   transText: {
     fontFamily: fonts.pixel,
     fontSize: 30,

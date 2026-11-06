@@ -171,7 +171,7 @@ export default function QuestVerifyScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   kav: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.white,
