@@ -12,7 +12,7 @@ from backend.app.challenge.celery_app import celery_app
 from backend.app.common.config import get_setting
 from backend.app.common.database import SessionLocal
 from backend.app.common.repository import DatabaseRepository
-from backend.app.common.s3_client import generate_download_presigned_url
+from backend.app.common.s3_client import generate_internal_download_url
 from backend.app.auth.models import User
 from backend.app.quest.models import Quest
 from backend.app.quest.enums import QuestType
@@ -72,7 +72,7 @@ def retry_held_submissions() -> int:
                         "quest_id": quest.quest_id,
                         "quest_title": quest.quest_title,
                         "quest_description": quest.quest_description,
-                        "media_urls": [generate_download_presigned_url(k) for k in keys],
+                        "media_urls": [generate_internal_download_url(k) for k in keys],
                         "is_video": quest.quest_type != QuestType.VOLUNTEER,
                     },
                     timeout=90.0,

@@ -34,6 +34,8 @@ class AISettings(BaseSettings):
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "")
+    # 【2026-11 로컬 전환】 비우면 AWS S3, 적으면 그 주소(로컬 S3). 예) http://localhost:9000
+    S3_ENDPOINT_URL: str = os.getenv("S3_ENDPOINT_URL", "")
 
     # Embedding configs
     DEFAULT_EMBEDDING_PROVIDER: str = os.getenv("DEFAULT_EMBEDDING_PROVIDER", "openai")

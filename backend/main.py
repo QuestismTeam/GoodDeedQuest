@@ -1,11 +1,12 @@
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.common.config import get_setting
+from backend.app.common.s3_client import forget_request_host, remember_request_host
 # 라우터 임포트
 from backend.app.auth.router import router as auth_router
 from backend.app.quest.router import router as quest_router
@@ -40,6 +41,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 【2026-11 로컬 전환】 앱이 접속한 주소를 기억해 둔다.
+# 로컬 S3 의 presigned URL 을 그 주소로 서명하기 위해서다 (s3_client._client_facing_endpoint).
+# AWS S3 를 쓸 때는 기억만 하고 쓰이지 않는다.
+@app.middleware("http")
+async def remember_host_for_presigned_url(request: Request, call_next):
+    token = remember_request_host(request.url.hostname)
+    try:
+        return await call_next(request)
+    finally:
+        forget_request_host(token)
 
 static_dir = os.path.join(os.path.dirname(__file__), "app", "static")
 os.makedirs(static_dir, exist_ok=True)
