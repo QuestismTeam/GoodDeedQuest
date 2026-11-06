@@ -54,6 +54,13 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: SecretStr | None = None  # 없으면 IAM Role 사용
     S3_BUCKET_NAME: str = ""
 
+    # 【2026-11 로컬 전환】 AWS 를 내리고 로컬 S3(VersityGW, docker-compose.yml 의 s3 서비스)를 쓰기 위한 값
+    # S3_ENDPOINT_URL        : 서버가 붙을 주소. 비우면 AWS S3. 예) http://localhost:9000
+    # S3_PUBLIC_ENDPOINT_URL : 앱에 내려줄 URL 의 주소. 비우면 앱이 접속한 주소를 따라간다.
+    #                          (backend/app/common/s3_client.py 의 _client_facing_endpoint 참고)
+    S3_ENDPOINT_URL: str = ""
+    S3_PUBLIC_ENDPOINT_URL: str = ""
+
     
     DEBUG: bool = False #환경변수에 True로 바꾸면 개발시 편함
     JWT_ALGORITHM: str = "HS256"
